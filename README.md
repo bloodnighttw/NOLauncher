@@ -1,7 +1,14 @@
-# Tauri + React + Typescript
+# NOLauncher
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+NOLauncher, which is referring to \'Not Only launcher\',is a Minecraft launcher which going to provide several functionality as well as beautiful UI. It's built on Rust, Tauri, React and Tailwind CSS. PR is also welcome!
 
-## Recommended IDE Setup
+![alt text](image.png)
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Why I want to "reinvent the wheel" !
+1. The official Minecraft launcher lack of mod support and the speed of downloading assets is too slow!
+2. I have used several launcher, include GDLauncher, PrismLauncher, etc, GDLauncher is not maintaining and PrismLauncher doesn't have a good UI, what's more, both of them doesn't have any local server utility.
+
+## Why using tauri ?
+1. I want to practice rust, which recently I have learned.
+2. I don't like electron.
+
