@@ -26,8 +26,6 @@ async fn msa_auth(client_id: &str) -> Result<MSATokenResponse> {
     )
         // Microsoft requires client_id in URL rather than using Basic authentication.
         .set_auth_type(AuthType::RequestBody)
-        // This example will be running its own server at 127.0.0.1:8114.
-        // See below for the server implementation.
         .set_redirect_uri(
             RedirectUrl::new(LOCAL_REDIRECT_URI.to_string())
                 .expect("Invalid redirect URL"),
