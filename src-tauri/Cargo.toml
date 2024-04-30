@@ -18,10 +18,9 @@ open = "5.1.2"
 oauth2 = "4.4.2"
 tokio = { version = "1.25.0", features = ["full"] }
 reqwest = "0.12.4"
+anyhow = "1.0.82"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
 
-[env]
-RUST_BACKTRACE = "1"

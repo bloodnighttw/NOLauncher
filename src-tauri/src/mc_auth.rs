@@ -8,13 +8,15 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::time;
 
+use anyhow::Result;
+
 type MSATokenResponse = StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>; // alias for the Microsoft auth token response
 
 const LOCAL_REDIRECT_URI: &str = "http://127.0.0.1:8114/redirect";
 
 #[allow(dead_code)]
 #[tokio::main]
-async fn msa_auth(client_id:&str) -> Result<MSATokenResponse, Box<dyn std::error::Error>> {
+async fn msa_auth(client_id:&str) -> Result<MSATokenResponse> {
 
     let client = BasicClient::new(
         ClientId::new(client_id.to_string()),
@@ -87,7 +89,7 @@ async fn msa_auth(client_id:&str) -> Result<MSATokenResponse, Box<dyn std::error
             break; // stop http server which need to take the response from the browser
         }
     
-        Ok::<_, Box<dyn std::error::Error>>(token)
+        Ok(token)
     });
 
     return res.await?;
