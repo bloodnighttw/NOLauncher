@@ -1,0 +1,11 @@
+[alias]     # command aliases
+b = "build"
+c = "check"
+t = "test"
+r = "run"
+rr = "run --release"
+recursive_example = "rr --example recursions"
+space_example = ["run", "--release", "--", "\"command list\""]
+
+[env]
+MICROSOFT_CLIENT_ID = "47f3e635-2886-4628-a1c2-fd8a9f4d7a5f"
