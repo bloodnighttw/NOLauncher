@@ -1,14 +1,13 @@
+use anyhow::Result;
+use oauth2::{
+    AuthorizationCode, AuthType, AuthUrl, ClientId, CsrfToken, EmptyExtraTokenFields, PkceCodeChallenge, RedirectUrl, Scope, StandardTokenResponse, TokenUrl,
+};
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::reqwest::async_http_client;
-use oauth2::{
-    AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, EmptyExtraTokenFields, PkceCodeChallenge, RedirectUrl, Scope, StandardTokenResponse, TokenUrl
-};
 use reqwest::Url;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::time;
-
-use anyhow::Result;
 
 type MSATokenResponse = StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>; // alias for the Microsoft auth token response
 
@@ -16,8 +15,7 @@ const LOCAL_REDIRECT_URI: &str = "http://127.0.0.1:8114/redirect";
 
 #[allow(dead_code)]
 #[tokio::main]
-async fn msa_auth(client_id:&str) -> Result<MSATokenResponse> {
-
+async fn msa_auth(client_id: &str) -> Result<MSATokenResponse> {
     let client = BasicClient::new(
         ClientId::new(client_id.to_string()),
         None,
@@ -26,14 +24,14 @@ async fn msa_auth(client_id:&str) -> Result<MSATokenResponse> {
             "https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string(),
         )?),
     )
-    // Microsoft requires client_id in URL rather than using Basic authentication.
-    .set_auth_type(AuthType::RequestBody)
-    // This example will be running its own server at 127.0.0.1:8114.
-    // See below for the server implementation.
-    .set_redirect_uri(
-        RedirectUrl::new(LOCAL_REDIRECT_URI.to_string())
-            .expect("Invalid redirect URL"),
-    );
+        // Microsoft requires client_id in URL rather than using Basic authentication.
+        .set_auth_type(AuthType::RequestBody)
+        // This example will be running its own server at 127.0.0.1:8114.
+        // See below for the server implementation.
+        .set_redirect_uri(
+            RedirectUrl::new(LOCAL_REDIRECT_URI.to_string())
+                .expect("Invalid redirect URL"),
+        );
 
     // Microsoft supports Proof Key for Code Exchange (PKCE - https://oauth.net/2/pkce/).
     // Create a PKCE code verifier and SHA-256 encode it as a code challenge.
@@ -51,26 +49,27 @@ async fn msa_auth(client_id:&str) -> Result<MSATokenResponse> {
     // A very naive implementation of the redirect server.
     let listener = TcpListener::bind("127.0.0.1:8114").await?;
 
-    let res = time::timeout(time::Duration::from_secs(300), async{
-        let token;
-        loop {
-            let (stream, _) = listener.accept().await?;
+    let res = time::timeout(
+        time::Duration::from_secs(300), // set a 300-second timeout
+        async {
+
+            println!("waiting for the response from the browser");
+            let (stream, _) = listener.accept().await?; // a small http (based on tcp) server to get the response from the browser
             stream.readable().await?;
             let mut stream = BufReader::new(stream);
-    
+
             let code;
             {
                 let mut request_line = String::new();
                 stream.read_line(&mut request_line).await?;
-    
+
                 let redirect_url = request_line.split_whitespace().nth(1).unwrap();
                 let url = Url::parse(&("http://localhost".to_string() + redirect_url))?;
-    
+
                 let (_key, value) = url.query_pairs().find(|(key, _value)| key == "code").unwrap();
                 code = AuthorizationCode::new(value.into_owned());
-    
             }
-    
+
             let message = "Go back to your terminal :)";
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
@@ -78,19 +77,17 @@ async fn msa_auth(client_id:&str) -> Result<MSATokenResponse> {
                 message
             );
             stream.write_all(response.as_bytes()).await?;
-    
+
             // Exchange the code with a token.
-            token = client
+            let token = client
                 .exchange_code(code)
                 // Send the PKCE code verifier in the token request
                 .set_pkce_verifier(pkce_code_verifier)
                 .request_async(async_http_client).await?;
-        
-            break; // stop http server which need to take the response from the browser
-        }
-    
-        Ok(token)
-    });
+            
+            Ok(token)
+        },
+    );
 
     return res.await?;
 }
