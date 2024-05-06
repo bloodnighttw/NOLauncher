@@ -1,7 +1,5 @@
 use anyhow::Result;
-use oauth2::{
-    AuthorizationCode, AuthType, AuthUrl, ClientId, CsrfToken, EmptyExtraTokenFields, PkceCodeChallenge, RedirectUrl, Scope, StandardTokenResponse, TokenUrl,
-};
+use oauth2::{AuthorizationCode, AuthType, AuthUrl, ClientId, CsrfToken, EmptyExtraTokenFields, PkceCodeChallenge, RedirectUrl, Scope, StandardTokenResponse, TokenUrl};
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::reqwest::async_http_client;
 use reqwest::Url;
@@ -86,7 +84,6 @@ async fn msa_auth(client_id: &str) -> Result<MSATokenResponse> {
             Ok(token)
         },
     );
-
     return res.await?;
 }
 
@@ -94,9 +91,10 @@ async fn msa_auth(client_id: &str) -> Result<MSATokenResponse> {
 #[cfg(test)]
 mod tests {
     use super::msa_auth;
+    use oauth2::TokenResponse;
 
     #[test]
     fn msa_test() {
-        msa_auth(env!("MICROSOFT_CLIENT_ID")).unwrap();
+        println!("{}",msa_auth(env!("MICROSOFT_CLIENT_ID")).unwrap().access_token().secret());
     }
 }
