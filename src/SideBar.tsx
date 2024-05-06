@@ -1,4 +1,5 @@
 import "./index.css";
+import {Link, useLocation} from "react-router-dom";
 
 const homeSVG = (
     <svg
@@ -99,57 +100,74 @@ const settingSVG = (
 )
 
 const btnList = [
-    {icon: homeSVG, link: "#"},
-    {icon: serverSVG, link: "#"},
-    {icon: modListSVG, link: "#"},
+    {icon: homeSVG, link: "/"},
+    {icon: serverSVG, link: "/server"},
+    {icon: modListSVG, link: "/modlist"},
 
 ]
 
+function identifyLink(args: any) {
+    if (args.pathname.startsWith('/modlist')) return 2;
+    if (args.pathname.startsWith('/server')) return 1;
+    return 0; // '/home' & '/instance/{id}'
+}
+
 export default function SideBar() {
+    let location = useLocation();
     return (
         <>
             <aside
                 className="flex flex-col items-center w-20 h-screen py-8 overflow-y-auto bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky">
                 <nav className="flex flex-col flex-1 space-y-6">
                     {btnList.map((btn, index) => (
-                        <a
-                            key={index}
-                            href={btn.link}
-                            className="p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-                        >
-                            {btn.icon}
-                        </a>
+                        (identifyLink(location) === index
+                            ? <Link
+                                key={index}
+                                to={btn.link}
+                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 bg-gray-100"}
+                            >
+                                {btn.icon}
+                            </Link>
+                            : <Link
+                                key={index}
+                                to={btn.link}
+                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"}
+                            >
+                                {btn.icon}
+                            </Link>
+                        )
+
                     ))}
 
                     <hr/>
 
-                    <a href="#">
+                    <Link to="#">
                         {userImage}
-                    </a>
+                    </Link>
 
-                    <a href="#">
+                    <Link to="#">
                         {userImage}
-                    </a>
+                    </Link>
                 </nav>
 
-                <div className="flex flex-col space-y-6">
-                    <a
-                        href="#"
+                <div className="flex flex-col space-y-6 sticky">
+                    <Link
+                        to="#"
                         className="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
                     >
                         {consoleSVG}
-                    </a>
+                    </Link>
 
-                    <a
-                        href="#"
+                    <Link
+                        to="#"
                         className="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
                     >
                         {settingSVG}
-                    </a>
+                    </Link>
 
-                    <a href="#">
+                    <Link to="#">
                         {userImage}
-                    </a>
+                    </Link>
                 </div>
             </aside>
         </>

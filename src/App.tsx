@@ -1,5 +1,9 @@
 import SideBar from "./SideBar";
 import "./index.css";
+import {Route, Routes} from "react-router-dom";
+import {Home} from "./Home.tsx";
+import {Server} from "./Server.tsx";
+import {ModList} from "./ModList.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
@@ -9,7 +13,7 @@ export function Content(props: ContentProps) {
     return (
         <div className="flex flex-col w-full">
             <div
-                data-tauri-drag-region
+                data-tauri-drag-region={true}
                 className="h-8 bg-gray-100 w-full flex flex-row"
             >
             </div>
@@ -24,11 +28,11 @@ export default function App() {
             <div className="flex flex-row">
                 <SideBar/>
                 <Content>
-                    <h1 className="text-2xl font-bold px-4">Coming soon ......</h1>
-                    <p className="text-gray-500 px-4 text-center">
-                        The application is currently under construct,you can follow use on
-                        <a href="https://github.com/bloodnighttw/nolauncher">github!</a>
-                    </p>
+                    <Routes>
+                        <Route path="/" element={<Home/>}/>
+                        <Route path="/server" element={<Server/>}/>
+                        <Route path="/modlist" element={<ModList/>}/>
+                    </Routes>
                 </Content>
             </div>
 
