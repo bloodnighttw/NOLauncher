@@ -26,7 +26,7 @@ const SCOPE:&str = "XboxLive.signin offline_access";
  */
 
 #[tokio::main]
-async fn create_client() -> Result<BasicClient> {
+pub(crate) async fn create_client() -> Result<BasicClient> {
 
     let client = BasicClient::new(
         ClientId::new(MSA_CLIENT_ID.to_string()),
@@ -42,7 +42,7 @@ async fn create_client() -> Result<BasicClient> {
 
 
 #[tokio::main]
-async fn generate_msa_device_code_auth(client: &BasicClient) -> Result<StandardDeviceAuthorizationResponse> {
+pub(crate) async fn generate_msa_device_code_auth(client: &BasicClient) -> Result<StandardDeviceAuthorizationResponse> {
     
     let details: StandardDeviceAuthorizationResponse = client
         .exchange_device_code()?
@@ -54,7 +54,7 @@ async fn generate_msa_device_code_auth(client: &BasicClient) -> Result<StandardD
 }
 
 #[tokio::main]
-async fn get_msa_token(client: &BasicClient, details:&StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse>{
+pub(crate) async fn get_msa_token(client: &BasicClient, details:&StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse>{
     let token = client
         .exchange_device_access_token(&details)
         .request_async(async_http_client, tokio::time::sleep, None)
@@ -62,27 +62,3 @@ async fn get_msa_token(client: &BasicClient, details:&StandardDeviceAuthorizatio
     Ok(token)
 }
 
-#[cfg(test)]
-mod tests {
-    use oauth2::StandardDeviceAuthorizationResponse;
-    use super::{create_client, generate_msa_device_code_auth, get_msa_token};
-    use oauth2::TokenResponse;
-
-    #[test]
-    fn msa_test() {
-        let client = create_client().unwrap();
-        let detail:StandardDeviceAuthorizationResponse = generate_msa_device_code_auth(&client).unwrap();
-
-        println!(
-            "Open this URL in your browser:\n{}\nand enter the code: {}",
-            detail.verification_uri().to_string(),
-            detail.user_code().secret().to_string()
-        );
-        
-        open::that(detail.verification_uri().to_string()).unwrap();
-        let token = get_msa_token(&client, &detail).unwrap();
-        
-        println!("Access Token: {}", token.access_token().secret());
-        
-    }
-}
