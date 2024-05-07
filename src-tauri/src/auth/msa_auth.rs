@@ -25,40 +25,46 @@ const SCOPE:&str = "XboxLive.signin offline_access";
  *  if you don't enable it, you won't be able to use device code auth flow.
  */
 
-#[tokio::main]
-pub(crate) async fn create_client() -> Result<BasicClient> {
-
-    let client = BasicClient::new(
-        ClientId::new(MSA_CLIENT_ID.to_string()),
-        None,
-        AuthUrl::new(MSA_AUTHORIZE_URL.to_string())?,
-        Some(TokenUrl::new(MSA_TOKEN_URL.to_string())?),
-    )
-        .set_device_authorization_url(DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string())?)
-        .set_auth_type(AuthType::RequestBody);
-
-    Ok(client)
+pub(crate) struct MicrosoftAuthFlow {
+    client: BasicClient,
 }
 
-
-#[tokio::main]
-pub(crate) async fn generate_msa_device_code_auth(client: &BasicClient) -> Result<StandardDeviceAuthorizationResponse> {
+impl MicrosoftAuthFlow {
     
-    let details: StandardDeviceAuthorizationResponse = client
-        .exchange_device_code()?
-        .add_scope(Scope::new(SCOPE.to_string()))
-        .request_async(async_http_client)
-        .await?;
+    pub fn new() -> Result<Self> {
+        let client = BasicClient::new(
+            ClientId::new(MSA_CLIENT_ID.to_string()),
+            None,
+            AuthUrl::new(MSA_AUTHORIZE_URL.to_string())?,
+            Some(TokenUrl::new(MSA_TOKEN_URL.to_string())?)
+        )
+            .set_device_authorization_url(DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string()).expect("Invalid Device Code URL"))
+            .set_auth_type(AuthType::RequestBody);
+        
+        
+        Ok(Self {
+            client
+        })
+    }
+
+    #[tokio::main]
+    pub async fn generate_msa_device_code_auth(&self) -> Result<StandardDeviceAuthorizationResponse> {
+        let details: StandardDeviceAuthorizationResponse = self.client
+            .exchange_device_code()?
+            .add_scope(Scope::new(SCOPE.to_string()))
+            .request_async(async_http_client)
+            .await?;
+
+        Ok(details)
+    }
+
+    #[tokio::main]
+    pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
+        let token = self.client
+            .exchange_device_access_token(&details)
+            .request_async(async_http_client, tokio::time::sleep, None)
+            .await?;
+        Ok(token)
+    }
     
-    Ok(details)
 }
-
-#[tokio::main]
-pub(crate) async fn get_msa_token(client: &BasicClient, details:&StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse>{
-    let token = client
-        .exchange_device_access_token(&details)
-        .request_async(async_http_client, tokio::time::sleep, None)
-        .await?;
-    Ok(token)
-}
-
