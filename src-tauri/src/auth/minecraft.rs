@@ -200,6 +200,15 @@
 // END OF TERMS AND CONDITIONS
 
 
+/*  To gain Minecraft Access Token,You do these thing:
+ *      1. Gain the key to access XBOX LIVE API         <--- Not here.
+ *      2. Obtain XSTS token for Minecraft              <--- You are here.
+ *      3. Authenticate with Minecraft                  <--- and here.
+ *
+ *  You can find more details on https://wiki.vg/Microsoft_Authentication_Scheme
+ */
+
+
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
