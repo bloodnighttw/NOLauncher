@@ -29,6 +29,6 @@ mod tests {
         let xbox_xsts_token = mc_flow.xbox_security_token(xbox_token).unwrap();
         let mc_token = mc_flow.exchange_microsoft_token(user_hash,xbox_xsts_token).unwrap();
         
-        println!("{}",mc_token.access_token.to_string());
+        println!("{}",mc_token.access_token);
     }
 }
