@@ -126,7 +126,7 @@ export default function SideBar() {
                             ? <Link
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 bg-gray-100"}
+                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100"}
                             >
                                 {btn.icon}
                             </Link>
@@ -165,7 +165,7 @@ export default function SideBar() {
                                 ? <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 bg-gray-100"}
+                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100"}
                                 >
                                     {settingSVG}
                                 </Link>
@@ -179,7 +179,6 @@ export default function SideBar() {
                         )
 
                     }
-
 
                     <Link to="/login">
                         {userImage}
