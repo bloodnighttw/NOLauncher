@@ -4,6 +4,9 @@ import {Route, Routes} from "react-router-dom";
 import {Home} from "./Home.tsx";
 import {Server} from "./Server.tsx";
 import {ModList} from "./ModList.tsx";
+import React from "react";
+import {Settings} from "./Settings.tsx";
+import {Login} from "./Login.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
@@ -11,13 +14,15 @@ interface ContentProps {
 
 export function Content(props: ContentProps) {
     return (
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col h-screen w-full">
             <div
                 data-tauri-drag-region={true}
-                className="h-8 bg-gray-100 w-full flex flex-row"
+                className="h-8 bg-gray-100 w-full flex flex-row sticky"
             >
             </div>
-            {props.children}
+            <div className="w-full h-full overflow-y-auto">
+                {props.children}
+            </div>
         </div>
     );
 }
@@ -32,6 +37,8 @@ export default function App() {
                         <Route path="/" element={<Home/>}/>
                         <Route path="/server" element={<Server/>}/>
                         <Route path="/modlist" element={<ModList/>}/>
+                        <Route path="/settings" element={<Settings/>}/>
+                        <Route path="/login" element={<Login/>}/>
                     </Routes>
                 </Content>
             </div>

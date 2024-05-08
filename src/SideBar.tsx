@@ -107,6 +107,8 @@ const btnList = [
 ]
 
 function identifyLink(args: any) {
+    if (args.pathname.startsWith('/login')) return 4;
+    if (args.pathname.startsWith('/settings')) return 3;
     if (args.pathname.startsWith('/modlist')) return 2;
     if (args.pathname.startsWith('/server')) return 1;
     return 0; // '/home' & '/instance/{id}'
@@ -158,14 +160,28 @@ export default function SideBar() {
                         {consoleSVG}
                     </Link>
 
-                    <Link
-                        to="#"
-                        className="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-                    >
-                        {settingSVG}
-                    </Link>
+                    {
+                        (identifyLink(location) === 3
+                                ? <Link
+                                    key={3}
+                                    to="/settings"
+                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 bg-gray-100"}
+                                >
+                                    {settingSVG}
+                                </Link>
+                                : <Link
+                                    key={3}
+                                    to="/settings"
+                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"}
+                                >
+                                    {settingSVG}
+                                </Link>
+                        )
 
-                    <Link to="#">
+                    }
+
+
+                    <Link to="/login">
                         {userImage}
                     </Link>
                 </div>
