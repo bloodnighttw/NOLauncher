@@ -107,7 +107,7 @@ const btnList = [
 ]
 
 function identifyLink(args: any) {
-    if (args.pathname.startsWith('/login')) return 4;
+    if (args.pathname.startsWith('/login') || args.pathname.startsWith('/auth')) return 4;
     if (args.pathname.startsWith('/settings')) return 3;
     if (args.pathname.startsWith('/modlist')) return 2;
     if (args.pathname.startsWith('/server')) return 1;
