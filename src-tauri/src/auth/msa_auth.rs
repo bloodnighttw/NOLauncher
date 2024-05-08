@@ -10,7 +10,6 @@ use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::{AuthType, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenUrl};
 use oauth2::reqwest::async_http_client;
 use anyhow::Result;
-use serde::de::Error;
 
 const MSA_CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
@@ -48,10 +47,9 @@ impl MicrosoftAuthFlow {
         })
     }
 
-    #[tokio::main]
     pub async fn generate_msa_device_code_auth(&self) -> Result<StandardDeviceAuthorizationResponse> {
         let details: StandardDeviceAuthorizationResponse = self.client
-            .exchange_device_code()? //here is problem
+            .exchange_device_code()? 
             .add_scope(Scope::new(SCOPE.to_string()))
             .request_async(async_http_client)
             .await?;
@@ -59,7 +57,6 @@ impl MicrosoftAuthFlow {
         Ok(details)
     }
 
-    #[tokio::main]
     pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
         let token = self.client
             .exchange_device_access_token(&details)
