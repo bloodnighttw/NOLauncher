@@ -5,9 +5,24 @@ pub(crate) mod msa_auth;
 mod minecraft;
 
 #[tauri::command]
-pub fn msa_auth_init() -> String {
-    let ms_auth_flow = msa_auth::MicrosoftAuthFlow::new().unwrap();
-    let detail:StandardDeviceAuthorizationResponse = ms_auth_flow.generate_msa_device_code_auth().unwrap();
+pub async  fn msa_auth_init() -> String {
+    
+    let ms_auth_flow = match msa_auth::MicrosoftAuthFlow::new(){
+        Ok(flow) => flow,
+        Err(e) => {
+            return json!({
+                "error": e.to_string()
+            }).to_string()
+        }
+    };
+    let detail:StandardDeviceAuthorizationResponse = match ms_auth_flow.generate_msa_device_code_auth().await{
+        Ok(detail) => detail,
+        Err(e) => {
+            return json!({
+                "error": e.to_string()
+            }).to_string()
+        }
+    };
 
     println!(
         "Open this URL in your browser:\n{}\nand enter the code: {}",
@@ -17,7 +32,8 @@ pub fn msa_auth_init() -> String {
     
     json!({
         "verification_uri": detail.verification_uri().to_string(),
-        "user_code": detail.user_code().secret().to_string()
+        "user_code": detail.user_code().secret().to_string(),
+        
     }).to_string()
 
 }
