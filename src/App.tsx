@@ -6,7 +6,7 @@ import {Server} from "./Server.tsx";
 import {ModList} from "./ModList.tsx";
 import React from "react";
 import {Settings} from "./Settings.tsx";
-import {Login} from "./Login.tsx";
+import {Auth, Login} from "./Login.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
@@ -39,6 +39,7 @@ export default function App() {
                         <Route path="/modlist" element={<ModList/>}/>
                         <Route path="/settings" element={<Settings/>}/>
                         <Route path="/login" element={<Login/>}/>
+                        <Route path="/login/auth" element={<Auth/>}/>
                     </Routes>
                 </Content>
             </div>
