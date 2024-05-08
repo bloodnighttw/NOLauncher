@@ -13,18 +13,7 @@ fn greet(name: &str) -> String {
 
 fn main() {
 
-    println!("MSA Auth Init");
-    let ms_auth_flow = crate::auth::msa_auth::MicrosoftAuthFlow::new().unwrap();
-    let detail:StandardDeviceAuthorizationResponse = ms_auth_flow.generate_msa_device_code_auth().unwrap();
-
-    println!(
-        "Open this URL in your browser:\n{}\nand enter the code: {}",
-        &detail.verification_uri().to_string(),
-        &detail.user_code().secret().to_string()
-    );
-    
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet])
         .invoke_handler(tauri::generate_handler![auth::msa_auth_init])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
