@@ -8,4 +8,4 @@ recursive_example = "rr --example recursions"
 space_example = ["run", "--release", "--", "\"command list\""]
 
 [env]
-MICROSOFT_CLIENT_ID ="c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"
+MICROSOFT_CLIENT_ID = "47f3e635-2886-4628-a1c2-fd8a9f4d7a5f"
