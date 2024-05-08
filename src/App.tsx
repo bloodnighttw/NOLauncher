@@ -39,7 +39,7 @@ export default function App() {
                         <Route path="/modlist" element={<ModList/>}/>
                         <Route path="/settings" element={<Settings/>}/>
                         <Route path="/login" element={<Login/>}/>
-                        <Route path="/login/auth" element={<Auth/>}/>
+                        <Route path="/auth" element={<Auth/>}/>
                     </Routes>
                 </Content>
             </div>

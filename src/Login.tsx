@@ -7,7 +7,7 @@ interface LoginCardProps {
     url?: string;
 }
 
-interface LoginCardGridProps {
+interface PC {
     children?: React.ReactNode,
 }
 
@@ -16,10 +16,19 @@ interface Verify {
     user_code: string,
 }
 
-function LoginCard(props:LoginCardProps) {
+function Center(props:PC) {
+    return (
+        <div className="px-2 py-1 flex flex-col h-full justify-center items-center overflow-y-auto ">
+            {props.children}
+        </div>
+    );
+
+}
+
+function LoginCard(props: LoginCardProps) {
     return (
         <Link
-            to={props.url || "/login/auth"}
+            to={props.url || "/auth"}
             className="w-20 h-20 bg-gray-200 dark:bg-zinc-700 rounded-xl"
         >
             {props.image == null ?
@@ -36,7 +45,7 @@ function LoginCard(props:LoginCardProps) {
     );
 }
 
-function LoginCardGrid(props:LoginCardGridProps) {
+function Grid(props:PC) {
     let len = React.Children.count(props.children)
     let css = "gap-8 p-4 grid grid-cols-" +((len <=4) ? len : 4).toString();
     return (
@@ -65,50 +74,58 @@ const no_account = (
     </div>
 )
 
-
-export function Auth() {
-    const [verfied, setVerified] = useState<Verify | null>(null)
-
-    const fetchData = () => {invoke('msa_auth_init').then((res:any) => {
-        console.log(res)
-        setVerified(JSON.parse(res) as Verify)
-        console.log(verfied)
-    }).catch((err)=>{
-        console.error(err)
-    })}
-
-    useEffect(() => {
-        fetchData();
-    }, []);
-
+function Generating() {
     return (
         <div>
-            <h1>123</h1>
-
-            <h1>
-            {verfied == null ? verfied : verfied.verification_uri}
-
-        </h1>
+            <h1>Generating</h1>
         </div>
     );
 }
 
-export function Login() {
-    const [user, setUser] = useState<[]>([])
+export function Auth() {
+    const [verfied, setVerified] = useState<Verify | null>(null)
+
+
+
+    useEffect(() => {
+        console.log("invoke")
+        invoke("msa_auth_init").then((res:any) => {
+            console.log(res)
+            let json = JSON.parse(res)
+            setVerified(json as Verify)
+        })
+    }, [setVerified]);
 
     return (
-        <div className="px-2 py-1 flex flex-col h-full justify-center items-center overflow-y-auto ">
+        <Center>
+            <div>
+                {verfied == null ? <Generating/> : null}
+                <h1>123</h1>
+
+                <h1>
+                    {verfied == null ? verfied : verfied.verification_uri}
+                </h1>
+            </div>
+
+        </Center>
+
+    );
+}
+
+
+export function Login() {
+    const [user, _] = useState<[]>([])
+
+    return (
+        <Center>
             {(user.length > 0 ?
                     have_account:
                     no_account
             )}
-
-
-            <LoginCardGrid>
+            <Grid>
                 <LoginCard/>
-            </LoginCardGrid>
+            </Grid>
+        </Center>
 
-
-        </div>
     );
 }
