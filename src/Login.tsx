@@ -82,13 +82,32 @@ function Generating() {
     );
 }
 
+
+interface InnerInformation{
+    message:{
+        verification_uri: string,
+        user_code: string
+    }
+}
+
+function LoginButton(props:InnerInformation) {
+
+    const handleClick = () => {
+        invoke("msa_auth_open_browser",{ invokeMessage: JSON.stringify(props.message) }).then((res:any) => {
+            console.log(res)
+    })};
+
+    return (
+        <div>
+            <button className="font-semibold rounded-md shadow-md" onClick={handleClick}>OUO</button>
+        </div>
+    );
+}
+
 export function Auth() {
     const [verfied, setVerified] = useState<Verify | null>(null)
 
-
-
     useEffect(() => {
-        console.log("invoke")
         invoke("msa_auth_init").then((res:any) => {
             console.log(res)
             let json = JSON.parse(res)
@@ -100,7 +119,7 @@ export function Auth() {
         <Center>
             <div>
                 {verfied == null ? <Generating/> : null}
-                <h1>123</h1>
+                {verfied == null ?  null : <LoginButton message={verfied}/>}
 
                 <h1>
                     {verfied == null ? verfied : verfied.verification_uri}

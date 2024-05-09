@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use oauth2::StandardDeviceAuthorizationResponse;
 use serde_json::json;
 
@@ -30,13 +31,31 @@ pub async fn msa_auth_init() -> String {
         &detail.user_code().secret().to_string()
     );
     
+    
     json!({
         "verification_uri": detail.verification_uri().to_string(),
         "user_code": detail.user_code().secret().to_string(),
-        
     }).to_string()
 
 }
+
+#[derive(serde::Deserialize,serde::Serialize)]
+struct InnerMessage{
+    user_code: String,
+    verification_uri: String,
+}
+
+#[tauri::command]
+pub async fn msa_auth_open_browser(invoke_message: String) -> String {
+    let mut clipboard = Clipboard::new().unwrap();
+    let detail:InnerMessage = serde_json::from_str(&invoke_message).unwrap();
+    clipboard.set_text(detail.user_code.clone()).unwrap();
+    open::that(format!("{}?otc={}",detail.verification_uri,detail.user_code).to_string()).unwrap();
+    json!({
+        "status": "success"
+    }).to_string()
+}
+
 
 // #[cfg(test)]
 // mod tests {
