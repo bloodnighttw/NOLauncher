@@ -211,6 +211,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use oauth2::reqwest::async_http_client;
 
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -329,7 +330,6 @@ impl MinecraftAuthorizationFlow {
     /// Authenticates with the Microsoft identity platform using the given
     /// Microsoft access token and returns a [MinecraftAuthenticationResponse]
     /// that contains the Minecraft access token.
-    #[tokio::main]
     pub async fn exchange_microsoft_token(
         &self, user_hash: String,xbox_security_token:XboxLiveAuthenticationResponse
     ) -> Result<MinecraftAuthenticationResponse, MinecraftAuthorizationError> {
@@ -353,7 +353,6 @@ impl MinecraftAuthorizationFlow {
         Ok(response)
     }
 
-    #[tokio::main]
     pub async fn xbox_security_token(
         &self, xbox_token: String,
     ) -> Result<XboxLiveAuthenticationResponse, MinecraftAuthorizationError> {
@@ -389,7 +388,6 @@ impl MinecraftAuthorizationFlow {
         }
     }
 
-    #[tokio::main]
     pub async fn xbox_token(
         &self, microsoft_access_token: impl AsRef<str>,
     ) -> Result<(String, String), MinecraftAuthorizationError> {

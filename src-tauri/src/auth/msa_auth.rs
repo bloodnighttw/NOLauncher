@@ -64,5 +64,12 @@ impl MicrosoftAuthFlow {
             .await?;
         Ok(token)
     }
-    
+
+    pub async fn await_exchenge(&self,token:&StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
+        let ouo:BasicTokenResponse = self.client.exchange_device_access_token(token)
+            .request_async(async_http_client, tokio::time::sleep, None)
+            .await?;
+
+        Ok(ouo)
+    }
 }
