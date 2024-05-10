@@ -10,6 +10,7 @@ use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::{AuthType, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenUrl};
 use oauth2::reqwest::async_http_client;
 use anyhow::Result;
+use oauth2::RefreshToken;
 
 const MSA_CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
@@ -47,6 +48,15 @@ impl MicrosoftAuthFlow {
         })
     }
 
+    pub async fn refresh_token(&self,refresh_token:String) -> Result<BasicTokenResponse> {
+        let refresh_token = RefreshToken::new(refresh_token);
+        let token = self.client
+            .exchange_refresh_token(&refresh_token)
+            .request_async(async_http_client)
+            .await?;
+        Ok(token)
+    }
+    
     pub async fn generate_msa_device_code_auth(&self) -> Result<StandardDeviceAuthorizationResponse> {
         let details: StandardDeviceAuthorizationResponse = self.client
             .exchange_device_code()? 
@@ -59,17 +69,9 @@ impl MicrosoftAuthFlow {
 
     pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
         let token = self.client
-            .exchange_device_access_token(&details)
+            .exchange_device_access_token(details)
             .request_async(async_http_client, tokio::time::sleep, None)
             .await?;
         Ok(token)
-    }
-
-    pub async fn await_exchenge(&self,token:&StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
-        let ouo:BasicTokenResponse = self.client.exchange_device_access_token(token)
-            .request_async(async_http_client, tokio::time::sleep, None)
-            .await?;
-
-        Ok(ouo)
     }
 }

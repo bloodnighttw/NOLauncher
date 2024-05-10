@@ -70,7 +70,7 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         }
     };
     
-    let token = match ms_auth_flow.await_exchenge(&detail).await{
+    let token = match ms_auth_flow.get_msa_token(&detail).await{
         Ok(token) => token,
         Err(e) => {
             return e.to_string();
