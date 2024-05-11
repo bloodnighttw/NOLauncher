@@ -3,6 +3,7 @@ use oauth2::{StandardDeviceAuthorizationResponse, TokenResponse};
 use reqwest::Client;
 use serde_json::{from_str, json};
 use tauri::Manager;
+use log::error;
 use crate::auth::minecraft::MinecraftAuthorizationFlow;
 
 pub(crate) mod msa_auth;
@@ -66,14 +67,20 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     let ms_auth_flow = match msa_auth::MicrosoftAuthFlow::new(){
         Ok(flow) => flow,
         Err(e) => {
-            return e.to_string();
+            error!("stop auth 1 {}", e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
         }
     };
     
     let token = match ms_auth_flow.get_msa_token(&detail).await{
         Ok(token) => token,
         Err(e) => {
-            return e.to_string();
+            error!("stop auth 2 {}",e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
         }
     };
 
@@ -84,7 +91,10 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     let (xbox_token,user_hash) = match mc_flow.xbox_token(token.access_token().secret()).await{
         Ok((token,hash)) => (token,hash),
         Err(e) => {
-            return e.to_string()
+            error!("stop auth 3 {}",e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
         }
     };
 
@@ -93,7 +103,10 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     let xbox_xsts_token = match mc_flow.xbox_security_token(xbox_token).await{
         Ok(token) => token,
         Err(e) => {
-            return e.to_string()
+            error!("stop auth 3 {}",e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
         }
     };
 
@@ -102,13 +115,30 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     let mc_token = match mc_flow.exchange_microsoft_token(user_hash,xbox_xsts_token).await{
         Ok(token) => token,
         Err(e) => {
-            return e.to_string()
+            error!("stop auth 4 {}",e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
         }
     };
+
+    app.emit_all("mc_login", Payload { message: "Fetching Your Profile......".into() }).unwrap();
+
+    let profile = match mc_flow.get_minecraft_profile(mc_token.access_token).await{
+        Ok(profile) => profile,
+        Err(e) => {
+            error!("stop auth 5 {}",e.to_string());
+            return json!({
+                "status":e.to_string()
+            }).to_string()
+        }
+    };
+
+    app.emit_all("mc_login", Payload { message: "Good! ......".into() }).unwrap();
     
     json!(
         {
-            "success":true
+            "status":"success"
         }
     ).to_string()
 }

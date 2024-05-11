@@ -211,7 +211,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use oauth2::reqwest::async_http_client;
+
 
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -221,6 +221,7 @@ use thiserror::Error;
 const MINECRAFT_LOGIN_WITH_XBOX: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
 const XBOX_USER_AUTHENTICATE: &str = "https://user.auth.xboxlive.com/user/authenticate";
 const XBOX_XSTS_AUTHORIZE: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
+const MINECRAFT_PROFILE: &str = "https://api.minecraftservices.com/minecraft/profile";
 
 /// Represents a Minecraft access token
 #[derive(Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -253,16 +254,21 @@ pub enum MinecraftAuthorizationError {
     Reqwest(#[from] reqwest::Error),
 
     /// Account belongs to a minor who needs to be added to a microsoft family
-    #[error("Minor must be added to microsoft family")]
+    #[error("AddToFamily")]
     AddToFamily,
 
     /// Account does not have xbox, user must create an xbox account to continue
-    #[error("Account does not have xbox")]
+    #[error("NoXbox")]
     NoXbox,
 
     /// Claims were missing from the response
-    #[error("missing claims from response")]
+    #[error("MissingClaims")]
     MissingClaims,
+
+    /// You don't have any profile on minecraft, which mean you don't own game
+    /// or your don't log in to official minecraft launcher first (if you are using Xbox Game Pass)
+    #[error("MinecraftProfileNotFound")]
+    MinecraftProfileNotFound,
 }
 
 /// The response from Minecraft when attempting to authenticate with an xbox
@@ -318,6 +324,47 @@ pub struct XboxLiveAuthenticationResponseError {
 /// Minecraft access token.
 pub struct MinecraftAuthorizationFlow {
     http_client: Client,
+}
+
+/// Represents the information of user's Minecraft skin
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftSkin {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub texture_key: String,
+    pub variant: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftCaps {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub alias: String,
+}
+
+
+/// Represents the information of user's Minecraft profile
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftProfile {
+    pub id: String,
+    pub name: String,
+    pub skins: Vec<MinecraftSkin>,
+    pub capes: Vec<MinecraftCaps>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftProfileError {
+    pub path: String,
+    pub error_type:String,
+    pub error:String,
+    pub error_message:String,
+    pub developer_message:String,
 }
 
 impl MinecraftAuthorizationFlow {
@@ -420,4 +467,21 @@ impl MinecraftAuthorizationFlow {
             .to_owned();
         Ok((xbox_token, user_hash))
     }
+
+
+    pub async fn get_minecraft_profile(&self, access_token: MinecraftAccessToken) -> Result<MinecraftProfile,MinecraftAuthorizationError>{
+        let response = self.http_client
+            .get(MINECRAFT_PROFILE)
+            .header("Authorization",format!("Bearer {}", access_token.to_string()))
+            .send()
+            .await?;
+
+        let minecraft_profile = match response.status() {
+            StatusCode::OK => response.json().await?,
+            _ => { return Err(MinecraftAuthorizationError::MinecraftProfileNotFound); }
+        };
+
+        Ok(minecraft_profile)
+    }
+
 }

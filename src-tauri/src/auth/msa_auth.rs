@@ -10,6 +10,7 @@ use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::{AuthType, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenUrl};
 use oauth2::reqwest::async_http_client;
 use anyhow::Result;
+use log::info;
 use oauth2::RefreshToken;
 
 const MSA_CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
@@ -68,9 +69,10 @@ impl MicrosoftAuthFlow {
     }
 
     pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
+        info!("Token expire in {:?}",details.expires_in());
         let token = self.client
             .exchange_device_access_token(details)
-            .request_async(async_http_client, tokio::time::sleep, None)
+            .request_async(async_http_client, tokio::time::sleep, Some(details.expires_in()))
             .await?;
         Ok(token)
     }
