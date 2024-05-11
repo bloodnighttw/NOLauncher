@@ -20,6 +20,22 @@ interface Verify {
     device_code: string,
 }
 
+type SUCCESS = 0;
+type DEVICE_CODE_FLOW_ERROR = 1;
+type XBOX_ERROR = 2;
+type MINECRAFT_PROFILE_ERROR = 3;
+
+const SUCCESS = 0;
+const DEVICE_CODE_FLOW_ERROR = 1;
+const XBOX_ERROR = 2;
+const MINECRAFT_PROFILE_ERROR = 3;
+
+
+interface Status{
+    status: SUCCESS | DEVICE_CODE_FLOW_ERROR | XBOX_ERROR | MINECRAFT_PROFILE_ERROR,
+    details: string | null
+}
+
 interface LoginButtonProps {
     details: Verify|null,
 }
@@ -109,6 +125,7 @@ function StepParent(prop: PC) {
 
 interface StepProps {
     condition: boolean,
+    error?: boolean | null,
     svg: React.ReactNode,
     children: React.ReactNode,
 }
@@ -116,10 +133,11 @@ interface StepProps {
 function StepChild(prop: StepProps) {
     const done = "absolute flex items-center justify-center w-8 h-8 bg-green-200 rounded-full -start-4 ring-4 ring-white dark:ring-zinc-700 dark:bg-green-900";
     const notDone = "absolute flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full -start-4 ring-4 ring-white dark:ring-zinc-700 dark:bg-zinc-900";
+    const error = "absolute flex items-center justify-center w-8 h-8 bg-red-200 rounded-full -start-4 ring-4 ring-white dark:ring-zinc-700 dark:bg-red-900";
     return (
         <li className="mb-10 ms-6 px-2">
             <span
-                className={prop.condition ? done : notDone}>
+                className={prop.condition ? done : prop.error ? error  : notDone}>
                 {prop.svg}
             </span>
             <div className="px-2 text-left">
@@ -191,9 +209,14 @@ function Loading(props: PC) {
 }
 
 
+
 export function Auth() {
     const [verfied, setVerified] = useState<Verify | null>(null)
     const [allDone, setAllDone] = useState(false)
+    const [device_code_flow_error, setDeviceCodeFlowError] = useState(false)
+    const [xbox_error, setXboxError] = useState(false)
+    const [minecraft_profile_error, setMinecraftProfileError] = useState(false)
+    const [errorDetails, setErrorDetails] = useState<Status | null>(null)
     const [state, setState] = useState("")
 
     useEffect(() => {
@@ -202,15 +225,33 @@ export function Auth() {
             let json = JSON.parse(res)
             setVerified(json as Verify)
             invoke("msa_auth_exchange", {invokeMessage: res}).then((res: any) => {
-                console.log(res)
-                setAllDone(true)
+                let json = JSON.parse(res) as Status
+                setErrorDetails(json)
+                switch (json.status){
+                    case DEVICE_CODE_FLOW_ERROR:
+                        setState("Error while fetching device code!")
+                        setDeviceCodeFlowError(true)
+                        break
+                    case XBOX_ERROR:
+                        setState("Error while fetching xbox profile!")
+                        setXboxError(true)
+                        break
+                    case MINECRAFT_PROFILE_ERROR:
+                        setState("Error while fetching minecraft profile!")
+                        setMinecraftProfileError(true)
+                        break
+                    case SUCCESS:
+                        setAllDone(true)
+                        break
+                    default:
+                        setState("Error: Unknown error occurred. Please Report to author!")
+                }
             })
         })
     }, [setVerified, setAllDone]);
 
 
     useEffect(() => {
-        console.log('hi')
         const event = async () => {
             await listen<Payload>("mc_login", (event: any) => {
                 let payload = event.payload;
@@ -230,21 +271,25 @@ export function Auth() {
                         <h3 className="font-bold">Generating Device Auth Code</h3>
                         <p> {verfied == null ? <Loading><p>please waiting......</p></Loading> : "the code is " + verfied.user_code} </p>
                     </StepChild>
-                    <StepChild condition={(state !== "" || allDone)} svg={code}>
+                    <StepChild condition={(state !== "" || allDone)} svg={code} error={device_code_flow_error}>
                         <h3 className="font-bold">Enter the code</h3>
                         <p>Click the button down below to auth with Microsoft!</p>
                         <p>Open {verfied?.verification_uri}</p>
                         <p>in browser and enter code {verfied?.user_code}</p>
                         {verfied == null || allDone ? "" : <LoginButton details={verfied}/>}
                     </StepChild>
-                    <StepChild condition={allDone} svg={xbox}>
+                    <StepChild condition={allDone} svg={xbox} error={xbox_error || minecraft_profile_error || device_code_flow_error}>
                         <h3 className="font-bold">Fetching your data</h3>
                         {
                             allDone ? "" : state == "" ? "" : <Loading>{state}</Loading>
                         }
+
                     </StepChild>
-                    <StepChild condition={allDone} svg={Done}>
+                    <StepChild condition={allDone} svg={Done} error={xbox_error || minecraft_profile_error || device_code_flow_error}>
                         <h3 className="font-bold">You are now log in!</h3>
+                        {
+                            xbox_error || minecraft_profile_error || device_code_flow_error ? errorDetails?.details ?"details:" + errorDetails?.details :"" :""
+                        }
                     </StepChild>
                 </StepParent>
             </div>

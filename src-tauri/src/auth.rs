@@ -9,6 +9,11 @@ use crate::auth::minecraft::MinecraftAuthorizationFlow;
 pub(crate) mod msa_auth;
 mod minecraft;
 
+const SUCCESS: i32 = 0;
+const DEVICE_CODE_FLOW_ERROR: i32 = 1;
+const XBOX_ERROR: i32 = 2;
+const MINECRAFT_PROFILE_ERROR: i32 = 3;
+
 #[tauri::command]
 pub async fn msa_auth_init() -> String {
     
@@ -16,7 +21,7 @@ pub async fn msa_auth_init() -> String {
         Ok(flow) => flow,
         Err(e) => {
             return json!({
-                "error": e.to_string()
+                "status": DEVICE_CODE_FLOW_ERROR,
             }).to_string()
         }
     };
@@ -24,7 +29,7 @@ pub async fn msa_auth_init() -> String {
         Ok(detail) => detail,
         Err(e) => {
             return json!({
-                "error": e.to_string()
+                "status": DEVICE_CODE_FLOW_ERROR
             }).to_string()
         }
     };
@@ -51,7 +56,7 @@ pub async fn msa_auth_open_browser(invoke_message: String) -> String {
     clipboard.set_text(&detail.user_code().secret().to_string()).unwrap();
     open::that(format!("{}?otc={}",&detail.verification_uri().to_string(),&detail.user_code().secret().to_string()).to_string()).unwrap();
     json!({
-        "status": "success"
+        "status": SUCCESS
     }).to_string()
 }
 
@@ -69,7 +74,8 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 1 {}", e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":DEVICE_CODE_FLOW_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
@@ -79,7 +85,8 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 2 {}",e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":DEVICE_CODE_FLOW_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
@@ -93,7 +100,8 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 3 {}",e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":XBOX_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
@@ -105,7 +113,8 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 3 {}",e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":XBOX_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
@@ -117,7 +126,8 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 4 {}",e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":XBOX_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
@@ -129,13 +139,14 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
         Err(e) => {
             error!("stop auth 5 {}",e.to_string());
             return json!({
-                "status":e.to_string()
+                "status":MINECRAFT_PROFILE_ERROR,
+                "detail":e.to_string()
             }).to_string()
         }
     };
 
     app.emit_all("mc_login", Payload { message: "Good! ......".into() }).unwrap();
-    
+
     json!(
         {
             "status":"success"
