@@ -208,6 +208,19 @@ function Loading(props: PC) {
     );
 }
 
+interface AuthCodeProps {
+    code: string
+}
+
+function AuthCode(props:AuthCodeProps){
+
+    return (
+        <div className="flex flex-row my-2">
+            <p className="font-bold text-4xl"> {props.code} </p>
+        </div>
+    )
+}
+
 
 
 export function Auth() {
@@ -269,7 +282,7 @@ export function Auth() {
                 <StepParent>
                     <StepChild condition={verfied != null} svg={account}>
                         <h3 className="font-bold">Generating Device Auth Code</h3>
-                        <p> {verfied == null ? <Loading><p>please waiting......</p></Loading> : "the code is " + verfied.user_code} </p>
+                        <p> {verfied == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verfied.user_code}/> }</p>
                     </StepChild>
                     <StepChild condition={(state !== "" || allDone)} svg={code} error={device_code_flow_error}>
                         <h3 className="font-bold">Enter the code</h3>
