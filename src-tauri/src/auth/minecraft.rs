@@ -211,11 +211,13 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use std::time::Duration;
+use log::error;
 
 
 use reqwest::{Client, StatusCode};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::{json, Value};
 use thiserror::Error;
 
 const MINECRAFT_LOGIN_WITH_XBOX: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
@@ -286,7 +288,18 @@ pub struct MinecraftAuthenticationResponse {
     pub token_type: MinecraftTokenType,
 
     /// How many seconds until the token expires
-    expires_in: u32,
+    #[serde(deserialize_with = "to_duration")]
+    expires_in: Duration,
+}
+
+fn to_duration<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Duration, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Number(num) =>{
+            let v = num.as_u64().ok_or(de::Error::custom("Invalid number"))? as u64;
+            Duration::from_secs(v)
+        } ,
+        _ => return Err(de::Error::custom("wrong type"))
+    })
 }
 
 /// The response from Xbox when authenticating with a Microsoft token
@@ -394,10 +407,11 @@ impl MinecraftAuthorizationFlow {
             }))
             .send()
             .await?;
-        response.error_for_status_ref()?;
 
-        let response = response.json().await?;
-        Ok(response)
+        response.error_for_status_ref()?;
+        let ouo = response.json().await?;
+        
+        Ok(ouo)
     }
 
     pub async fn xbox_security_token(

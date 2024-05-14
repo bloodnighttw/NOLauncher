@@ -6,12 +6,14 @@
  *  You can find more details on https://wiki.vg/Microsoft_Authentication_Scheme
  */
 
+use std::time::Duration;
 use oauth2::basic::{BasicClient, BasicTokenResponse};
-use oauth2::{AuthType, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenUrl};
+use oauth2::{AuthType, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl};
 use oauth2::reqwest::async_http_client;
 use anyhow::Result;
 use log::info;
 use oauth2::RefreshToken;
+use crate::utils::data::TimeSensitiveTrait;
 
 const MSA_CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
@@ -29,6 +31,16 @@ const SCOPE:&str = "XboxLive.signin offline_access";
 
 pub(crate) struct MicrosoftAuthFlow {
     client: BasicClient,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct MicrosoftTokenResponse(pub BasicTokenResponse);
+
+impl TimeSensitiveTrait for MicrosoftTokenResponse{
+    
+    fn get_duration(&self) -> Duration {
+        return self.0.expires_in().clone().unwrap_or(Duration::MAX);
+    }
 }
 
 impl MicrosoftAuthFlow {
@@ -68,12 +80,13 @@ impl MicrosoftAuthFlow {
         Ok(details)
     }
 
-    pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<BasicTokenResponse> {
+    pub async fn get_msa_token(&self, details: &StandardDeviceAuthorizationResponse) -> Result<MicrosoftTokenResponse> {
         info!("Token expire in {:?}",details.expires_in());
         let token = self.client
             .exchange_device_access_token(details)
             .request_async(async_http_client, tokio::time::sleep, Some(details.expires_in()))
             .await?;
-        Ok(token)
+        
+        Ok(MicrosoftTokenResponse(token))
     }
 }

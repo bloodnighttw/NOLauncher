@@ -1946,6 +1946,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "arboard",
+ "chrono",
  "log",
  "oauth2",
  "open 5.1.2",

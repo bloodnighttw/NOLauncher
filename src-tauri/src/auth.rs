@@ -5,6 +5,10 @@ use serde_json::{from_str, json};
 use tauri::Manager;
 use log::error;
 use crate::auth::minecraft::MinecraftAuthorizationFlow;
+use chrono;
+use chrono::{Local};
+use crate::auth::msa_auth::MicrosoftTokenResponse;
+use crate::utils::data::{Payload, TimeSensitiveData};
 
 pub(crate) mod msa_auth;
 mod minecraft;
@@ -43,11 +47,6 @@ pub async fn msa_auth_init() -> String {
     serde_json::to_string(&detail).unwrap()
 }
 
-#[derive(serde::Deserialize,serde::Serialize)]
-struct InnerMessage{
-    user_code: String,
-    verification_uri: String,
-}
 
 #[tauri::command]
 pub async fn msa_auth_open_browser(invoke_message: String) -> String {
@@ -60,13 +59,18 @@ pub async fn msa_auth_open_browser(invoke_message: String) -> String {
     }).to_string()
 }
 
-#[derive(Clone, serde::Serialize)]
-struct Payload {
-    message: String,
+
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct UserData {
+    msa_auth_token:TimeSensitiveData<MicrosoftTokenResponse>,
 }
 
 #[tauri::command]
 pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> String{
+    
+    let now = Local::now();
+    
     
     let detail:StandardDeviceAuthorizationResponse = from_str(&invoke_message).unwrap();
     let ms_auth_flow = match msa_auth::MicrosoftAuthFlow::new(){
@@ -95,7 +99,7 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
 
 
     let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
-    let (xbox_token,user_hash) = match mc_flow.xbox_token(token.access_token().secret()).await{
+    let (xbox_token,user_hash) = match mc_flow.xbox_token(token.0.access_token().secret()).await{
         Ok((token,hash)) => (token,hash),
         Err(e) => {
             error!("stop auth 3 {}",e.to_string());
@@ -146,10 +150,11 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     };
 
     app.emit_all("mc_login", Payload { message: "Good! ......".into() }).unwrap();
+    let i = now.time();
 
     json!(
         {
-            "status":"success"
+            "status": SUCCESS,
         }
     ).to_string()
 }

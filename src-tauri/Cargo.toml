@@ -22,6 +22,7 @@ anyhow = "1.0.82"
 thiserror = "1.0.59"
 arboard = "3.4.0"
 log = "0.4.21"
+chrono = "0.4.38"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

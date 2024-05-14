@@ -4,6 +4,7 @@
 use log::{LevelFilter, Log, Metadata, Record};
 
 mod auth;
+mod utils;
 
 struct Logger;
 
@@ -22,7 +23,11 @@ impl Log for Logger {
 
 fn init_log() {
     static LOGGER: Logger = Logger;
-    log::set_max_level(LevelFilter::Error);
+    if(std::env::var("RUST_Debug").unwrap_or("false".to_string()) == "true"){
+        log::set_max_level(LevelFilter::Error);
+    }else{
+        log::set_max_level(LevelFilter::Info)
+    }
     log::set_logger(&LOGGER).unwrap();
 }
 
