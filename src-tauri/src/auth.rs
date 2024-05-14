@@ -53,7 +53,7 @@ pub async fn msa_auth_open_browser(invoke_message: String) -> String {
     let mut clipboard = Clipboard::new().unwrap();
     let detail:StandardDeviceAuthorizationResponse = from_str(&invoke_message).unwrap();
     clipboard.set_text(&detail.user_code().secret().to_string()).unwrap();
-    open::that(format!("{}?otc={}",&detail.verification_uri().to_string(),&detail.user_code().secret().to_string()).to_string()).unwrap();
+    open::that(format!("{}",&detail.verification_uri().to_string())).unwrap();
     json!({
         "status": SUCCESS
     }).to_string()

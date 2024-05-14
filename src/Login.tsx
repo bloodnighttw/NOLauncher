@@ -109,7 +109,7 @@ function LoginButton(props: LoginButtonProps) {
 
     return (
         <div>
-            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Open In Browser
+            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Copy Code & Open In Browser
             </button>
         </div>
     );
