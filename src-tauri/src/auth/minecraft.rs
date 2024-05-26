@@ -219,6 +219,7 @@ use reqwest::{Client, StatusCode};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use thiserror::Error;
+use crate::utils::data::TimeSensitiveTrait;
 
 const MINECRAFT_LOGIN_WITH_XBOX: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
 const XBOX_USER_AUTHENTICATE: &str = "https://user.auth.xboxlive.com/user/authenticate";
@@ -300,6 +301,12 @@ fn to_duration<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Duration, D
         } ,
         _ => return Err(de::Error::custom("wrong type"))
     })
+}
+
+impl TimeSensitiveTrait for MinecraftAuthenticationResponse{
+    fn get_duration(&self) -> Duration {
+        self.expires_in
+    }
 }
 
 /// The response from Xbox when authenticating with a Microsoft token

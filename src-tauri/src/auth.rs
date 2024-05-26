@@ -11,7 +11,7 @@ use crate::auth::msa_auth::MicrosoftTokenResponse;
 use crate::utils::data::{Payload, TimeSensitiveData};
 
 pub(crate) mod msa_auth;
-mod minecraft;
+pub(crate) mod minecraft;
 
 const SUCCESS: i32 = 0;
 const DEVICE_CODE_FLOW_ERROR: i32 = 1;
@@ -150,7 +150,7 @@ pub async fn msa_auth_exchange(invoke_message: String,app: tauri::AppHandle)-> S
     };
 
     app.emit_all("mc_login", Payload { message: "Good! ......".into() }).unwrap();
-    let i = now.time();
+    
 
     json!(
         {

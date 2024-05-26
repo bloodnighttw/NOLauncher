@@ -1,5 +1,6 @@
 use std::time::Duration;
 use chrono::{DateTime, Local};
+use crate::auth::msa_auth::MicrosoftTokenResponse;
 
 pub trait TimeSensitiveTrait {
     fn get_duration(&self) -> Duration;
@@ -45,4 +46,9 @@ impl<T> TimeSensitiveData<T> where T: TimeSensitiveTrait
 #[derive(Clone, serde::Serialize)]
 pub struct Payload {
     pub(crate) message: String,
+}
+
+pub struct UserData{
+    msa_auth_token:TimeSensitiveData<MicrosoftTokenResponse>,
+    mc_token:TimeSensitiveData<crate::auth::minecraft::MinecraftAuthenticationResponse>,
 }
