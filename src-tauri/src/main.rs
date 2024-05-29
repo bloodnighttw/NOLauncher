@@ -3,8 +3,10 @@
 
 use log::{LevelFilter, Log, Metadata, Record};
 
-mod auth;
 mod utils;
+mod minecraft;
+mod event;
+mod command;
 
 struct Logger;
 

@@ -1,54 +1,49 @@
 use std::time::Duration;
 use chrono::{DateTime, Local};
-use crate::auth::msa_auth::MicrosoftTokenResponse;
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
+
+#[derive(Clone,Deserialize,Serialize,Debug,PartialEq)]
+pub struct TimeSensitiveData<T> where T: TimeSensitiveTrait {
+    pub(crate) data: T,
+    /// The time when the data was created.
+    #[serde(deserialize_with = "str_to_time",serialize_with = "time_to_str")]
+    time:DateTime<Local>,
+}
 
 pub trait TimeSensitiveTrait {
     fn get_duration(&self) -> Duration;
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct TimeSensitiveData<T:TimeSensitiveTrait> {
-    data: T,
-
-    /// The time when the data was created.
-    time: DateTime<Local>,
-}
-
-impl<T> TimeSensitiveData<T> where T: TimeSensitiveTrait
-{
-    /// Create a new TimeSensitiveData instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `data`: the time sensitive data.
-    ///
-    /// returns: TimeSensitiveData<T>
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let data = TimeSensitiveData::new("Hello, world!");
-    /// ```
-    fn new(data: T) -> Self {
+impl<T> TimeSensitiveData<T> where T: TimeSensitiveTrait {
+    pub fn new(data: T) -> Self {
         Self {
             data,
             time: Local::now(),
         }
     }
-    
-    fn is_expired(&self) -> bool {
+
+    pub fn is_vaild(&self) -> bool {
         let duration = (Local::now() - self.time).to_std().expect("Failed to convert chrono::Duration to std::Duration");
-        return duration > self.data.get_duration();
+        duration < self.data.get_duration()
     }
 
 }
 
-#[derive(Clone, serde::Serialize)]
-pub struct Payload {
-    pub(crate) message: String,
+fn str_to_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<DateTime<Local>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::String(str) =>{
+            let t = str.as_str();
+            let datetime = DateTime::parse_from_rfc3339(t).expect("Failed to parse time");
+            datetime.with_timezone(&Local)
+        }
+        _ => return Err(de::Error::custom("wrong type"))
+    })
 }
 
-pub struct UserData{
-    msa_auth_token:TimeSensitiveData<MicrosoftTokenResponse>,
-    mc_token:TimeSensitiveData<crate::auth::minecraft::MinecraftAuthenticationResponse>,
+fn time_to_str<S>(x: &DateTime<Local>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+{
+    s.serialize_str(x.to_rfc3339().as_str())
 }
