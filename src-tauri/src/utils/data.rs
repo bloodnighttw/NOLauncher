@@ -5,10 +5,10 @@ use serde_json::Value;
 
 #[derive(Clone,Deserialize,Serialize,Debug,PartialEq)]
 pub struct TimeSensitiveData<T> where T: TimeSensitiveTrait {
-    pub(crate) data: T,
+    pub data: T,
     /// The time when the data was created.
     #[serde(deserialize_with = "str_to_time",serialize_with = "time_to_str")]
-    time:DateTime<Local>,
+    pub time:DateTime<Local>,
 }
 
 pub trait TimeSensitiveTrait {

@@ -2,6 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use log::{LevelFilter, Log, Metadata, Record};
+use minecraft::auth::AuthFlow;
+use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
+use crate::minecraft::auth::MinecraftAuthorizationFlow;
 
 mod utils;
 mod minecraft;
@@ -33,13 +36,23 @@ fn init_log() {
     log::set_logger(&LOGGER).unwrap();
 }
 
+const CLIENT_ID:&str = env!("MICROSOFT_CLIENT_ID");
 
 fn main() {
    
     init_log();
     
+    let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![auth::msa_auth_open_browser,auth::msa_auth_init,auth::msa_auth_exchange])
+        .manage(authflow)
+        .invoke_handler(tauri::generate_handler![
+            devicecode_init,
+            devicecode_exchange,
+            xbox_live_auth,
+            xbox_xsts_auth,
+            minecraft_token,
+            minecraft_profile
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

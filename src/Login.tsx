@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import {invoke} from "@tauri-apps/api/tauri";
-import {listen} from "@tauri-apps/api/event";
+import {open} from "@tauri-apps/api/shell";
 
 interface LoginCardProps {
     image?: string;
@@ -15,25 +15,12 @@ interface PC {
 interface Verify {
     verification_uri: string,
     user_code: string,
-    expires_in: number,
-    interval: number,
-    device_code: string,
+    expires_in: Date,
 }
 
-type SUCCESS = 0;
-type DEVICE_CODE_FLOW_ERROR = 1;
-type XBOX_ERROR = 2;
-type MINECRAFT_PROFILE_ERROR = 3;
-
-const SUCCESS = 0;
-const DEVICE_CODE_FLOW_ERROR = 1;
-const XBOX_ERROR = 2;
-const MINECRAFT_PROFILE_ERROR = 3;
-
-
 interface Status{
-    status: SUCCESS | DEVICE_CODE_FLOW_ERROR | XBOX_ERROR | MINECRAFT_PROFILE_ERROR,
-    details: string | null
+    status: "success" | "error",
+    description: string | null
 }
 
 interface LoginButtonProps {
@@ -101,15 +88,13 @@ const no_account = (
 
 function LoginButton(props: LoginButtonProps) {
 
-    const handleClick = () => {
-        invoke("msa_auth_open_browser", {invokeMessage: JSON.stringify(props.details)}).then((res: any) => {
-            console.log(res)
-        })
+    const handleClick = async () => {
+        await open(props.details?.verification_uri as string);
     };
 
     return (
         <div>
-            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Copy Code & Open In Browser
+            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Open Browser
             </button>
         </div>
     );
@@ -182,10 +167,6 @@ const Done = (
     </svg>
 )
 
-interface Payload{
-    message: string
-}
-
 function Loading(props: PC) {
     return (
         <div className="flex flex-row">
@@ -225,55 +206,30 @@ function AuthCode(props:AuthCodeProps){
 
 export function Auth() {
     const [verfied, setVerified] = useState<Verify | null>(null)
-    const [allDone, setAllDone] = useState(false)
-    const [device_code_flow_error, setDeviceCodeFlowError] = useState(false)
-    const [xbox_error, setXboxError] = useState(false)
-    const [minecraft_profile_error, setMinecraftProfileError] = useState(false)
-    const [errorDetails, setErrorDetails] = useState<Status | null>(null)
-    const [state, setState] = useState("")
+    const [description, setDescription] = useState<Status | null>(null)
+    const [all, setAll] = useState<boolean | null>(null)
 
     useEffect(() => {
-        invoke("msa_auth_init").then((res: any) => {
-            console.log(res)
-            let json = JSON.parse(res)
-            setVerified(json as Verify)
-            invoke("msa_auth_exchange", {invokeMessage: res}).then((res: any) => {
-                let json = JSON.parse(res) as Status
-                setErrorDetails(json)
-                switch (json.status){
-                    case DEVICE_CODE_FLOW_ERROR:
-                        setState("Error while fetching device code!")
-                        setDeviceCodeFlowError(true)
-                        break
-                    case XBOX_ERROR:
-                        setState("Error while fetching xbox profile!")
-                        setXboxError(true)
-                        break
-                    case MINECRAFT_PROFILE_ERROR:
-                        setState("Error while fetching minecraft profile!")
-                        setMinecraftProfileError(true)
-                        break
-                    case SUCCESS:
-                        setAllDone(true)
-                        break
-                    default:
-                        setState("Error: Unknown error occurred. Please Report to author!")
-                }
-            })
-        })
-    }, [setVerified, setAllDone]);
 
-
-    useEffect(() => {
-        const event = async () => {
-            await listen<Payload>("mc_login", (event: any) => {
-                let payload = event.payload;
-                console.log(payload.message)
-                setState(payload.message)
-            })
+        let works = async () => {
+            let verifiedJson = JSON.parse(await invoke("devicecode_init")) as Verify
+            setVerified(verifiedJson)
+            let exchangeJson = JSON.parse(await invoke("devicecode_exchange", {code: verifiedJson.user_code})) as Status
+            setDescription(exchangeJson)
+            let xboxLiveJson = JSON.parse(await invoke("xbox_live_auth", {token: exchangeJson.description})) as Status
+            setDescription(xboxLiveJson)
+            let xboxXSTSJson = JSON.parse(await invoke("xbox_xsts_auth", {token: xboxLiveJson.description})) as Status
+            setDescription(xboxXSTSJson)
+            let minecraftTokenJson = JSON.parse(await invoke("minecraft_token", {token: xboxXSTSJson.description})) as Status
+            setDescription(minecraftTokenJson)
+            let minecraftProfileJson = JSON.parse(await invoke("minecraft_profile", {token: minecraftTokenJson.description})) as Status
+            setDescription(minecraftProfileJson)
+            setAll(minecraftProfileJson.status === "success")
         }
-        event()
-    })
+
+        works().then(r => console.log(r)).catch(_ => setAll(false))
+
+    }, [setVerified]);
 
     // https://flowbite.com/docs/components/stepper/https://flowbite.com/docs/components/stepper/
     return (
@@ -284,25 +240,21 @@ export function Auth() {
                         <h3 className="font-bold">Generating Device Auth Code</h3>
                         <p> {verfied == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verfied.user_code}/> }</p>
                     </StepChild>
-                    <StepChild condition={(state !== "" || allDone)} svg={code} error={device_code_flow_error}>
+                    <StepChild condition={description != null} svg={code} error={all === false}>
                         <h3 className="font-bold">Enter the code</h3>
-                        <p>Click the button down below to auth with Microsoft!</p>
                         <p>Open {verfied?.verification_uri}</p>
                         <p>in browser and enter code {verfied?.user_code}</p>
-                        {verfied == null || allDone ? "" : <LoginButton details={verfied}/>}
+                        {verfied == null || description != null ? "" : <LoginButton details={verfied}/>}
                     </StepChild>
-                    <StepChild condition={allDone} svg={xbox} error={xbox_error || minecraft_profile_error || device_code_flow_error}>
+                    <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>
                         {
-                            allDone ? "" : state == "" ? "" : <Loading>{state}</Loading>
+                            all || description == null ? "" : <Loading>{description?.description}</Loading>
                         }
 
                     </StepChild>
-                    <StepChild condition={allDone} svg={Done} error={xbox_error || minecraft_profile_error || device_code_flow_error}>
+                    <StepChild condition={all === true} svg={Done} error={all === false}>
                         <h3 className="font-bold">You are now log in!</h3>
-                        {
-                            xbox_error || minecraft_profile_error || device_code_flow_error ? errorDetails?.details ?"details:" + errorDetails?.details :"" :""
-                        }
                     </StepChild>
                 </StepParent>
             </div>

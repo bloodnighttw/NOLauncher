@@ -486,3 +486,5 @@ impl MinecraftAuthorizationFlow {
         Ok(())
     }
 }
+
+pub type AuthFlow = RwLock<MinecraftAuthorizationFlow>;
