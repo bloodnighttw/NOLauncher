@@ -229,7 +229,7 @@ export function Auth() {
 
         works().then(r => console.log(r)).catch(_ => setAll(false))
 
-    }, [setVerified]);
+    }, [setVerified,setDescription, setAll])
 
     // https://flowbite.com/docs/components/stepper/https://flowbite.com/docs/components/stepper/
     return (
