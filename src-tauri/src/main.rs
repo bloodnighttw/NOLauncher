@@ -1,10 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashMap;
 use log::{LevelFilter, Log, Metadata, Record};
 use minecraft::auth::AuthFlow;
 use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
-use crate::minecraft::auth::MinecraftAuthorizationFlow;
+use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap};
 
 mod utils;
 mod minecraft;
@@ -43,8 +44,10 @@ fn main() {
     init_log();
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
+    let usermap:MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
     tauri::Builder::default()
         .manage(authflow)
+        .manage(usermap)
         .invoke_handler(tauri::generate_handler![
             devicecode_init,
             devicecode_exchange,

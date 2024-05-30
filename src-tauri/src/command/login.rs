@@ -1,6 +1,6 @@
 use serde_json::json;
 use tauri::{State};
-use crate::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep};
+use crate::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep, MinecraftUUIDMap};
 
 #[tauri::command]
 pub async fn devicecode_init(authflow_rwlock: State<'_,AuthFlow>) -> Result<String,String> {
@@ -157,14 +157,20 @@ pub async fn minecraft_token(authflow_rwlock: State<'_,AuthFlow>) -> Result<Stri
 }
 
 #[tauri::command]
-pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>) -> Result<String,String> {
+pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>, map:State<'_,MinecraftUUIDMap>) -> Result<String,String> {
     let response = {
         let mut authflow = authflow_rwlock.write().await;
         authflow.check_minecraft_profile().await
     };
     
     match response {
-        Ok(_) => {
+        Ok(login_data) => {
+
+            {
+                let mut user = map.write().await;
+                user.insert(login_data.profile.clone().id.clone(),login_data);
+            }
+            
             Ok(json!({
                     "status": "success"
                 }).to_string())

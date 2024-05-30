@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
+use anyhow::Result;
 
 const DEVICECODE_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -263,53 +264,6 @@ impl MinecraftAuthorizationFlow {
         Ok(())
     }
 
-    pub async fn refresh_microsoft_token(&mut self) -> Result<(), MinecraftAuthError>{
-        let rw_data = match &self.status{
-            MinecraftAuthStep::MicrosoftAuth(data) => data,
-            _ => return Err(MinecraftAuthError::InvalidState)
-        };
-
-        let refresh_token = {
-            let r_data = rw_data.read().await;
-            let params:HashMap<String,String> = HashMap::from([
-                (String::from("client_id"),self.client_id.clone()),
-                (String::from("scope"),String::from(SCOPE)),
-                (String::from("refresh_token"),r_data.data.refresh_token.clone()),
-                (String::from("grant_type"),String::from("refresh_token")),
-            ]);
-
-            let response = self.client.post(TOKEN_URL)
-                .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .form(&params)
-                .header(PRAGMA, "no-cache")
-                .header("Cache-Control", "no-store")
-                .send()
-                .await;
-
-
-            let refresh_token:MicrosoftAuthResponse = match response{
-                Ok(response) => {
-                    if response.status() == 200{
-                        response.json().await.expect("this should be success!")
-                    }else{
-                        println!("{:?}",response.text().await.expect("this should be success!"));
-                        return Err(MinecraftAuthError::RefreshMicrosoftTokenError(format!("Failed to refresh token. status code:{}",400)))
-                    }
-                },
-                Err(e) => return Err(MinecraftAuthError::RefreshMicrosoftTokenError(e.to_string()))
-            };
-
-            refresh_token
-        };
-
-        {
-            let mut r_data = rw_data.write().await;
-            *r_data = TimeSensitiveData::new(refresh_token);
-        }
-
-        Ok(())
-    }
-
     pub async fn xbox_live_auth(&mut self) -> Result<(), MinecraftAuthError>{
         let data = match &self.status{
             MinecraftAuthStep::MicrosoftAuth(data) => data,
@@ -437,8 +391,7 @@ impl MinecraftAuthorizationFlow {
     }
 
     pub async fn check_minecraft_profile(&mut self) -> Result<
-        (Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
-        MinecraftProfile)
+        LoginAccount
         ,MinecraftAuthError> {
         let (data,profile) = match &self.status {
             MinecraftAuthStep::MinecraftAuth(data,profile) => (data.clone(),profile.clone()),
@@ -462,11 +415,109 @@ impl MinecraftAuthorizationFlow {
                 return Err(MinecraftAuthError::UnknownError(e.to_string()))
             }
         };
-        
-        self.reset();
 
-        Ok((data,profile_data))
+        self.reset();
+        
+        let profile_data = Arc::new(profile_data);
+
+        Ok(LoginAccount {
+            microsoft: data.clone(),
+            profile: profile_data.clone()
+        })
+        
     }
 }
 
 pub type AuthFlow = RwLock<MinecraftAuthorizationFlow>;
+
+pub struct LoginAccount {
+    pub microsoft: Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
+    pub profile: Arc<MinecraftProfile>
+}
+
+pub struct MinecraftLaunchData{
+    pub profile: Arc<MinecraftProfile>,
+    pub token: Arc<TimeSensitiveData<MinecraftAuthResponse>>
+}
+
+pub type MinecraftUUIDMap = RwLock<HashMap<String, LoginAccount>>;
+
+impl LoginAccount {
+
+
+    pub async fn check_microsoft_token(&mut self) -> Result<(),String>{
+        if !self.microsoft.read().await.is_vaild(){
+            return Ok(())
+        }
+
+        {
+            let mut data = self.microsoft.write().await;
+            let params:HashMap<String,String> = HashMap::from([
+                (String::from("client_id"),env!("MICROSOFT_CLIENT_ID").to_string()),
+                (String::from("scope"),String::from(SCOPE)),
+                (String::from("refresh_token"),data.data.refresh_token.clone()),
+                (String::from("grant_type"),String::from("refresh_token")),
+            ]);
+
+            let client = Client::new();
+
+            let response = client.post(TOKEN_URL)
+                .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .form(&params)
+                .header(PRAGMA, "no-cache")
+                .header("Cache-Control", "no-store")
+                .send()
+                .await;
+
+            let refresh_token:MicrosoftAuthResponse = match response{
+                Ok(response) => {
+                    if response.status() == 200{
+                        response.json().await.expect("this should be success!")
+                    }else{
+                        return Err(format!("Failed to refresh token. status code:{}",response.status()))
+                    }
+                },
+                Err(e) => return Err(format!("Failed to refresh token. details:{}",e))
+            };
+
+            *data = TimeSensitiveData::new(refresh_token);
+
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_launch_data(&mut self) -> Result<MinecraftLaunchData,String>{
+        self.check_microsoft_token().await?;
+        let mut authflow = MinecraftAuthorizationFlow::from(env!("MICROSOFT_CLIENT_ID"),MinecraftAuthStep::MicrosoftAuth(self.microsoft.clone()));
+        let response = authflow.xbox_live_auth().await;
+        if let Err(e) = response{
+            return Err(e.to_string())
+        }
+
+        let response = authflow.xbox_security_auth().await;
+        if let Err(e) = response{
+            return Err(e.to_string())
+        }
+
+        let response = authflow.get_minecraft_token().await;
+        let token = match response {
+            Ok(res) => {res.clone()},
+            Err(e) => { return Err(e.to_string())}
+        };
+
+        let response = authflow.check_minecraft_profile().await;
+        let latest_account = match response {
+            Ok(pair) => {pair},
+            Err(e) => { return Err(e.to_string())}
+        };
+        
+        self.profile = latest_account.profile.clone();
+        
+        Ok(MinecraftLaunchData {
+            profile: latest_account.profile,
+            token
+        })
+    }
+
+}
