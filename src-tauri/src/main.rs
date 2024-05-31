@@ -29,7 +29,7 @@ impl Log for Logger {
 
 fn init_log() {
     static LOGGER: Logger = Logger;
-    if(std::env::var("RUST_Debug").unwrap_or("false".to_string()) == "true"){
+    if std::env::var("RUST_Debug").unwrap_or("false".to_string()) == "true"{
         log::set_max_level(LevelFilter::Error);
     }else{
         log::set_max_level(LevelFilter::Info)
@@ -40,7 +40,7 @@ fn init_log() {
 const CLIENT_ID:&str = env!("MICROSOFT_CLIENT_ID");
 
 fn main() {
-   
+
     init_log();
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
@@ -56,6 +56,12 @@ fn main() {
             minecraft_token,
             minecraft_profile
         ])
+        .setup(|app|{
+            let config = app.path_resolver().app_config_dir();
+            let data = app.path_resolver().app_data_dir();
+            println!("app dir: {:?} \n {:?}",config,data);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

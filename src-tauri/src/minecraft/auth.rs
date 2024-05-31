@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use reqwest::{Client};
@@ -9,6 +11,8 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
+use chrono::{DateTime, Local};
+use tauri::{AppHandle, Manager};
 
 const DEVICECODE_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -435,15 +439,15 @@ pub struct LoginAccount {
     pub profile: Arc<MinecraftProfile>
 }
 
+#[derive(Clone,Serialize, Deserialize)]
 pub struct MinecraftLaunchData{
     pub profile: Arc<MinecraftProfile>,
     pub token: Arc<TimeSensitiveData<MinecraftAuthResponse>>
 }
 
-pub type MinecraftUUIDMap = RwLock<HashMap<String, LoginAccount>>;
+pub type MinecraftUUIDMap = RwLock<HashMap<String, Arc<LoginAccount>>>;
 
 impl LoginAccount {
-
 
     pub async fn check_microsoft_token(&mut self) -> Result<(),String>{
         if !self.microsoft.read().await.is_vaild(){
@@ -521,3 +525,28 @@ impl LoginAccount {
     }
 
 }
+
+pub async fn save(app_handle: &AppHandle) -> Result<(),String>{
+    let usermap = app_handle.state::<MinecraftUUIDMap>();
+    let config = app_handle.path_resolver().app_config_dir();
+    if let Some(config_path) = config {
+        let mut users = config_path.clone();
+        users.push("/users");
+        let response = tokio::fs::create_dir_all(&users).await;
+        if let Err(e) = response {
+            return Err(format!("Failed to create user directory. details:{}",e))
+        }
+        for (uuid,login_data) in usermap.read().await.iter(){
+            let mut filepath = users.clone();
+            filepath.push(format!("{}.json", uuid));
+            let microsoft = login_data.microsoft.read().await;
+            let response = tokio::fs::write(filepath, serde_json::to_string(&microsoft.deref()).expect("this should be success!")).await;
+            if let Err(e) = response {
+                return Err(format!("Failed to save user data. details:{}", e))
+            }
+        }
+    }
+
+    Ok(())
+}
+

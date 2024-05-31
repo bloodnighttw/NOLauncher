@@ -1,6 +1,8 @@
+use std::sync::Arc;
+use log::{error, warn};
 use serde_json::json;
-use tauri::{State};
-use crate::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep, MinecraftUUIDMap};
+use tauri::{AppHandle, Runtime, State};
+use crate::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep, MinecraftUUIDMap, save};
 
 #[tauri::command]
 pub async fn devicecode_init(authflow_rwlock: State<'_,AuthFlow>) -> Result<String,String> {
@@ -157,7 +159,7 @@ pub async fn minecraft_token(authflow_rwlock: State<'_,AuthFlow>) -> Result<Stri
 }
 
 #[tauri::command]
-pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>, map:State<'_,MinecraftUUIDMap>) -> Result<String,String> {
+pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>, map:State<'_,MinecraftUUIDMap>,app:AppHandle) -> Result<String,String> {
     let response = {
         let mut authflow = authflow_rwlock.write().await;
         authflow.check_minecraft_profile().await
@@ -166,10 +168,19 @@ pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>, map:State<'_
     match response {
         Ok(login_data) => {
 
+            let login_data = Arc::new(login_data);
             {
                 let mut user = map.write().await;
-                user.insert(login_data.profile.clone().id.clone(),login_data);
+                user.insert(login_data.profile.clone().id.clone(),login_data.clone());
             }
+            
+            let response = save(&app).await;
+
+            if let Err(e) = response {
+                warn!("Failed to save the user data. details: {}",e);
+            }
+            
+            crate::event::user::change_user(login_data.clone(),&app).await;
             
             Ok(json!({
                     "status": "success"

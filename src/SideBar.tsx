@@ -1,5 +1,7 @@
 import "./index.css";
 import {Link, useLocation} from "react-router-dom";
+import {useEffect, useState} from "react";
+import {listen} from "@tauri-apps/api/event";
 
 const homeSVG = (
     <svg
@@ -116,6 +118,20 @@ function identifyLink(args: any) {
 
 export default function SideBar() {
     let location = useLocation();
+    let [_user, setUser] = useState<UUIDPayload | null>(null);
+
+    let work = async () => {
+        await listen<UUIDPayload>("change_user", (event) => {
+            setUser(event.payload);
+        });
+
+    }
+
+    useEffect(() => {
+        work();
+    })
+
+
     return (
         <>
             <aside
