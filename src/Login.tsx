@@ -12,6 +12,11 @@ interface PC {
     children?: React.ReactNode,
 }
 
+interface PCLEN {
+    children?: React.ReactNode,
+    len?: number,
+}
+
 interface Verify {
     verification_uri: string,
     user_code: string,
@@ -56,14 +61,15 @@ function LoginCard(props: LoginCardProps) {
     );
 }
 
-function Grid(props: PC) {
-    let len = React.Children.count(props.children)
-    let css = "gap-8 p-4 grid grid-cols-" + ((len <= 4) ? len : 4).toString();
-    return (
-        <div className={css}>
-            {props.children}
-        </div>
-    );
+function Grid(props: PCLEN) {
+    if(props.len == 1){
+        return <div className="gap-8 p-4 grid grid-cols-1">{props.children}</div>
+    } else if(props.len == 2){
+        return <div className="gap-8 p-4 grid grid-cols-2">{props.children}</div>
+    } else if(props.len == 3){
+        return <div className="gap-8 p-4 grid grid-cols-3">{props.children}</div>
+    }
+    return <div className={"gap-8 p-4 grid grid-cols-4"+props.len}>{props.children}</div>
 }
 
 const have_account = (<h1 className="text-4xl">Select icon to switch</h1>);
@@ -266,11 +272,11 @@ export function Auth() {
 
 
 export function Login() {
-    const [user, _] = useState<[]>([])
+    const [user, setUser] = useState<Array<Profile>>([])
 
     useEffect(() => {
         invoke("get_users").then((res) => {
-            console.log(res)
+            setUser(JSON.parse(res as string) as Array<Profile>)
         })
     })
 
@@ -280,10 +286,12 @@ export function Login() {
                     have_account :
                     no_account
             )}
-            <Grid>
+            <Grid len={user.length+1}>
+                {user.map((value, _) => (
+                    <LoginCard key={value.id} image={value.skins[0].url} url={"/"}/>
+                ))}
                 <LoginCard/>
             </Grid>
         </Center>
-
     );
 }

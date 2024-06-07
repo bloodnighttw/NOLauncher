@@ -1,21 +1,21 @@
 interface Skin{
-    id:String,
-    state:String,
-    url:String,
-    texture_key:String,
-    variant_key:String,
+    id:string,
+    state:string,
+    url:string,
+    texture_key:string,
+    variant_key:string,
 }
 
 interface Caps{
-    id:String,
-    state:String,
-    url:String,
-    alias:String,
+    id:string,
+    state:string,
+    url:string,
+    alias:string,
 }
 
 interface Profile{
-    id:String,
-    username:String,
+    id:string,
+    username:string,
     skins:Array<Skin>,
     caps:Array<Caps>,
 }
