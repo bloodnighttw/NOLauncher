@@ -62,23 +62,6 @@ const userImage = (
     />
 )
 
-const consoleSVG = (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="currentColor"
-        className="w-6 h-6"
-    >
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z"
-        />
-    </svg>
-)
-
 const settingSVG = (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -134,7 +117,7 @@ export default function SideBar() {
 
     return (
         <>
-            <aside
+            <aside data-tauri-drag-region={true}
                 className="flex flex-col items-center w-20 h-screen py-8 overflow-y-auto bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky">
                 <nav className="flex flex-col flex-1 space-y-6">
                     {btnList.map((btn, index) => (
@@ -156,25 +139,9 @@ export default function SideBar() {
                         )
 
                     ))}
-
-                    <hr/>
-
-                    <Link to="#">
-                        {userImage}
-                    </Link>
-
-                    <Link to="#">
-                        {userImage}
-                    </Link>
                 </nav>
 
                 <div className="flex flex-col space-y-6 sticky">
-                    <Link
-                        to="#"
-                        className="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-                    >
-                        {consoleSVG}
-                    </Link>
 
                     {
                         (identifyLink(location) === 3
