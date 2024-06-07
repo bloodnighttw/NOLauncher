@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fs;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,8 +10,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
-use chrono::{DateTime, Local};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 
 const DEVICECODE_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -487,7 +485,7 @@ impl LoginAccount {
             *data = TimeSensitiveData::new(refresh_token);
 
         }
-
+        
         Ok(())
     }
 
@@ -530,23 +528,86 @@ pub async fn save(app_handle: &AppHandle) -> Result<(),String>{
     let usermap = app_handle.state::<MinecraftUUIDMap>();
     let config = app_handle.path_resolver().app_config_dir();
     if let Some(config_path) = config {
-        let mut users = config_path.clone();
-        users.push("/users");
-        let response = tokio::fs::create_dir_all(&users).await;
+        let token = config_path.join("token");
+        let profile = config_path.join("profile");
+        let response = tokio::fs::create_dir_all(&token).await;
         if let Err(e) = response {
             return Err(format!("Failed to create user directory. details:{}",e))
         }
         for (uuid,login_data) in usermap.read().await.iter(){
-            let mut filepath = users.clone();
-            filepath.push(format!("{}.json", uuid));
+            let token_file_path = token.join(format!("{}.json", uuid));
+            let profile_file_path = profile.join(format!("{}.json", uuid));
             let microsoft = login_data.microsoft.read().await;
-            let response = tokio::fs::write(filepath, serde_json::to_string(&microsoft.deref()).expect("this should be success!")).await;
-            if let Err(e) = response {
-                return Err(format!("Failed to save user data. details:{}", e))
+            if let Err(e) = tokio::fs::write(token_file_path, serde_json::to_string(&microsoft.deref()).expect("this should be success!")).await {
+                return Err(format!("Failed to save token data. details:{}", e))
             }
+            if let Err(e) = tokio::fs::write(profile_file_path, serde_json::to_string(&login_data.profile.deref()).expect("this should be success!")).await {
+                return Err(format!("Failed to save profile data. details:{}", e))
+            }
+            
         }
+    } else {
+        return Err("Failed to get the config directory.".to_string())
     }
 
+    Ok(())
+}
+
+pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
+    let usermap: State<MinecraftUUIDMap> = app_handle.state::<MinecraftUUIDMap>();
+    let config = app_handle.path_resolver().app_config_dir();
+    if let Some(config_path) = config{
+        let token_path = config_path.join("users");
+        let profile_path = config_path.join("profile");
+        let token = tokio::fs::read_dir(token_path).await;
+        if let Ok(mut files) = token {
+            loop{
+                let file = files.next_entry().await;
+                let (uuid,microsoft)  = if let Ok(file) = file{
+                    if let Some(file) = file{
+                        if let Ok(metadata) = file.metadata().await{
+                            if metadata.is_file() {continue}
+                        }
+                        let uuid = file.file_name().to_string_lossy().strip_suffix(".json").expect("this should be success!").to_string();
+                        let body = tokio::fs::read_to_string(file.path()).await;
+                        let mirosoft:MicrosoftAuthResponse = if let Ok(body) = body {
+                            serde_json::from_str(&body).expect("this should be success!")
+                        } else { 
+                            println!("failed to read the file. details:{}",body.err().unwrap());
+                            continue
+                        };
+                        (uuid,mirosoft)
+                    } else {
+                        break
+                    }
+                }
+                else{
+                    return Err(format!("Failed to read the user directory. details:{}",file.err().unwrap()))
+                };
+                
+                let profile_file = profile_path.join(format!("{}.json",uuid));
+                let profile_body = tokio::fs::read_to_string(profile_file).await;
+                let profile:MinecraftProfile = if let Ok(profile_body) = profile_body {
+                    serde_json::from_str(&profile_body).expect("this should be success!")
+                } else {
+                    println!("failed to read the file. details:{}",profile_body.err().unwrap());
+                    continue
+                };
+                
+                let login_data = LoginAccount {
+                    microsoft: Arc::new(RwLock::new(TimeSensitiveData::new(microsoft))),
+                    profile: Arc::new(profile)
+                };
+                
+                usermap.write().await.insert(uuid, Arc::new(login_data));
+            }
+        }else{
+            return Err("Failed to read the user directory.".to_string())
+        }
+
+    } else {
+        return Err("Failed to get the config directory.".to_string())
+    }
     Ok(())
 }
 

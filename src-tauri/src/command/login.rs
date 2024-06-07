@@ -19,7 +19,6 @@ pub async fn devicecode_init(authflow_rwlock: State<'_,AuthFlow>) -> Result<Stri
     {
         let mut auth_flow = authflow_rwlock.write().await;
         let response = &auth_flow.generate_device_code().await;
-        println!("yo");
         match response {
             Ok(_) => {
                 if let MinecraftAuthStep::DeviceCode(var) = &auth_flow.status {

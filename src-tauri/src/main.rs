@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use log::{LevelFilter, Log, Metadata, Record};
 use minecraft::auth::AuthFlow;
 use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
-use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap};
+use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod utils;
 mod minecraft;
@@ -57,9 +57,13 @@ fn main() {
             minecraft_profile
         ])
         .setup(|app|{
-            let config = app.path_resolver().app_config_dir();
-            let data = app.path_resolver().app_data_dir();
-            println!("app dir: {:?} \n {:?}",config,data);
+            let handle = app.handle();
+            tauri::async_runtime::spawn(async move {
+                let res = read(&handle).await;
+                if let Err(e) = res {
+                    log::error!("Failed to load the usermap: {}", e);
+                }
+            });
             Ok(())
         })
         .run(tauri::generate_context!())
