@@ -155,7 +155,7 @@ export default function SideBar() {
                                 : <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"}
+                                    className={"p-1.5 text-gray-700 focus:outline-nones duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"}
                                 >
                                     {settingSVG}
                                 </Link>
