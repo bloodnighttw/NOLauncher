@@ -125,14 +125,14 @@ export default function SideBar() {
                             ? <Link // select button
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100 hover:text-gray-900"}
+                                className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
                             >
                                 {btn.icon}
                             </Link>
                             : <Link
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:text-gray-900"}
+                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-50"}
                             >
                                 {btn.icon}
                             </Link>
@@ -148,14 +148,14 @@ export default function SideBar() {
                                 ? <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100 hover:text-gray-900"}
+                                    className={"p-1.5 text-gray-900 focus:outline-nones duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
                                 >
                                     {settingSVG}
                                 </Link>
                                 : <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:text-gray-900"}
+                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"}
                                 >
                                     {settingSVG}
                                 </Link>
