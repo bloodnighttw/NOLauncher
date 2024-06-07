@@ -10,6 +10,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
+use log::{info};
 use tauri::{AppHandle, Manager, State};
 
 const DEVICECODE_URL:&str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
@@ -567,17 +568,17 @@ pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
                 let (uuid,microsoft)  = if let Ok(file) = file{
                     if let Some(file) = file{
                         if let Ok(metadata) = file.metadata().await{
-                            if metadata.is_file() {continue}
+                            if metadata.is_dir() {continue}
                         }
                         let uuid = file.file_name().to_string_lossy().strip_suffix(".json").expect("this should be success!").to_string();
                         let body = tokio::fs::read_to_string(file.path()).await;
-                        let mirosoft:TimeSensitiveData<MicrosoftAuthResponse> = if let Ok(body) = body {
+                        let microsoft:TimeSensitiveData<MicrosoftAuthResponse> = if let Ok(body) = body {
                             serde_json::from_str(&body).expect("this should be success!")
-                        } else { 
+                        } else {
                             println!("failed to read the file. details:{}",body.err().unwrap());
                             continue
                         };
-                        (uuid,mirosoft)
+                        (uuid, microsoft)
                     } else {
                         break
                     }
@@ -585,21 +586,20 @@ pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
                 else{
                     return Err(format!("Failed to read the user directory. details:{}",file.err().unwrap()))
                 };
-                
+
                 let profile_file = profile_path.join(format!("{}.json",uuid));
                 let profile_body = tokio::fs::read_to_string(profile_file).await;
                 let profile:MinecraftProfile = if let Ok(profile_body) = profile_body {
                     serde_json::from_str(&profile_body).expect("this should be success!")
                 } else {
-                    println!("failed to read the file. details:{}",profile_body.err().unwrap());
+                    info!("failed to read the file. details:{}",profile_body.err().unwrap());
                     continue
                 };
-                
+
                 let login_data = LoginAccount {
                     microsoft: Arc::new(RwLock::new(microsoft)),
                     profile: Arc::new(profile)
                 };
-                
                 usermap.write().await.insert(uuid, Arc::new(login_data));
             }
         }else{

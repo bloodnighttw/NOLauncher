@@ -268,6 +268,12 @@ export function Auth() {
 export function Login() {
     const [user, _] = useState<[]>([])
 
+    useEffect(() => {
+        invoke("get_users").then((res) => {
+            console.log(res)
+        })
+    })
+
     return (
         <Center>
             {(user.length > 0 ?

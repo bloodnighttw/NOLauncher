@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use log::{LevelFilter, Log, Metadata, Record};
 use minecraft::auth::AuthFlow;
 use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
+use crate::command::user::get_users;
 use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod utils;
@@ -54,7 +55,8 @@ fn main() {
             xbox_live_auth,
             xbox_xsts_auth,
             minecraft_token,
-            minecraft_profile
+            minecraft_profile,
+            get_users
         ])
         .setup(|app|{
             let handle = app.handle();
