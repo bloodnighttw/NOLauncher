@@ -122,17 +122,17 @@ export default function SideBar() {
                 <nav className="flex flex-col flex-1 space-y-6">
                     {btnList.map((btn, index) => (
                         (identifyLink(location) === index
-                            ? <Link
+                            ? <Link // select button
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100"}
+                                className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100 hover:text-gray-900"}
                             >
                                 {btn.icon}
                             </Link>
                             : <Link
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"}
+                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:text-gray-900"}
                             >
                                 {btn.icon}
                             </Link>
@@ -144,18 +144,18 @@ export default function SideBar() {
                 <div className="flex flex-col space-y-6 sticky">
 
                     {
-                        (identifyLink(location) === 3
+                        (identifyLink(location) === 3 // select setting
                                 ? <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100"}
+                                    className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:bg-gray-800 bg-gray-100 hover:text-gray-900"}
                                 >
                                     {settingSVG}
                                 </Link>
                                 : <Link
                                     key={3}
                                     to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"}
+                                    className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:text-gray-900"}
                                 >
                                     {settingSVG}
                                 </Link>
