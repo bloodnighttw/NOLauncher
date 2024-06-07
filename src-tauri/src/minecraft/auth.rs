@@ -447,7 +447,7 @@ pub type MinecraftUUIDMap = RwLock<HashMap<String, Arc<LoginAccount>>>;
 
 impl LoginAccount {
 
-    pub async fn check_microsoft_token(&mut self) -> Result<(),String>{
+     async fn check_microsoft_token(&mut self) -> Result<(),String>{
         if !self.microsoft.read().await.is_vaild(){
             return Ok(())
         }
@@ -530,8 +530,10 @@ pub async fn save(app_handle: &AppHandle) -> Result<(),String>{
     if let Some(config_path) = config {
         let token = config_path.join("token");
         let profile = config_path.join("profile");
-        let response = tokio::fs::create_dir_all(&token).await;
-        if let Err(e) = response {
+        if let Err(e) = tokio::fs::create_dir_all(&token).await{
+            return Err(format!("Failed to create user directory. details:{}",e))
+        }
+        if let Err(e) = tokio::fs::create_dir_all(&profile).await{
             return Err(format!("Failed to create user directory. details:{}",e))
         }
         for (uuid,login_data) in usermap.read().await.iter(){
@@ -544,10 +546,9 @@ pub async fn save(app_handle: &AppHandle) -> Result<(),String>{
             if let Err(e) = tokio::fs::write(profile_file_path, serde_json::to_string(&login_data.profile.deref()).expect("this should be success!")).await {
                 return Err(format!("Failed to save profile data. details:{}", e))
             }
-            
         }
     } else {
-        return Err("Failed to get the config directory.".to_string())
+        return Err("Failed to get the config directory. details:path not found.".to_string())
     }
 
     Ok(())
@@ -557,7 +558,7 @@ pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
     let usermap: State<MinecraftUUIDMap> = app_handle.state::<MinecraftUUIDMap>();
     let config = app_handle.path_resolver().app_config_dir();
     if let Some(config_path) = config{
-        let token_path = config_path.join("users");
+        let token_path = config_path.join("token");
         let profile_path = config_path.join("profile");
         let token = tokio::fs::read_dir(token_path).await;
         if let Ok(mut files) = token {
@@ -570,7 +571,7 @@ pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
                         }
                         let uuid = file.file_name().to_string_lossy().strip_suffix(".json").expect("this should be success!").to_string();
                         let body = tokio::fs::read_to_string(file.path()).await;
-                        let mirosoft:MicrosoftAuthResponse = if let Ok(body) = body {
+                        let mirosoft:TimeSensitiveData<MicrosoftAuthResponse> = if let Ok(body) = body {
                             serde_json::from_str(&body).expect("this should be success!")
                         } else { 
                             println!("failed to read the file. details:{}",body.err().unwrap());
@@ -595,14 +596,14 @@ pub async fn read(app_handle: &AppHandle) -> Result<(),String>{
                 };
                 
                 let login_data = LoginAccount {
-                    microsoft: Arc::new(RwLock::new(TimeSensitiveData::new(microsoft))),
+                    microsoft: Arc::new(RwLock::new(microsoft)),
                     profile: Arc::new(profile)
                 };
                 
                 usermap.write().await.insert(uuid, Arc::new(login_data));
             }
         }else{
-            return Err("Failed to read the user directory.".to_string())
+            return Err(format!("Failed to read file. details:{}",token.err().unwrap()))
         }
 
     } else {
