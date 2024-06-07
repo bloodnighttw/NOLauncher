@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use log::{error, warn};
+use log::{warn};
 use serde_json::json;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, State};
 use crate::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep, MinecraftUUIDMap, save};
 
 #[tauri::command]
