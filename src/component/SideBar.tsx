@@ -1,4 +1,4 @@
-import "./index.css";
+import "../index.css";
 import {Link, useLocation} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
@@ -88,7 +88,6 @@ const btnList = [
     {icon: homeSVG, link: "/"},
     {icon: serverSVG, link: "/server"},
     {icon: modListSVG, link: "/modlist"},
-
 ]
 
 function identifyLink(args: any) {
@@ -111,9 +110,8 @@ export default function SideBar() {
     }
 
     useEffect(() => {
-        work();
+        work().catch(console.error);
     })
-
 
     return (
         <>

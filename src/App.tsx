@@ -1,12 +1,13 @@
-import SideBar from "./SideBar";
+import SideBar from "./component/SideBar.tsx";
 import "./index.css";
 import {Route, Routes} from "react-router-dom";
-import {Home} from "./Home.tsx";
-import {Server} from "./Server.tsx";
-import {ModList} from "./ModList.tsx";
+import {Home} from "./pages/Home.tsx";
+import {Server} from "./pages/Server.tsx";
+import {ModList} from "./pages/ModList.tsx";
+import {Settings} from "./pages/Settings.tsx";
+import {Login} from "./pages/Login.tsx";
+import {Auth} from "./pages/Auth.tsx";
 import React from "react";
-import {Settings} from "./Settings.tsx";
-import {Auth, Login} from "./Login.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
