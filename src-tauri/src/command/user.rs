@@ -1,6 +1,8 @@
-use tauri::State;
+use tauri::{AppHandle, State};
+use crate::event::user::change_user;
 use crate::minecraft::auth::MinecraftUUIDMap;
 use crate::utils::config::{LauncherConfig};
+
 
 #[tauri::command]
 pub async fn get_users(map:State<'_,MinecraftUUIDMap>) -> Result<String,String> {
@@ -21,8 +23,10 @@ pub async fn get_current_user(current_user:State<'_,LauncherConfig>) -> Result<S
 }
 
 #[tauri::command]
-pub async fn set_current_user(current_user:State<'_,LauncherConfig>,uuid:String) -> Result<String,String> {
+pub async fn set_current_user(current_user:State<'_,LauncherConfig>,app:AppHandle,id:String) -> Result<String,String> {
     let mut current_user = current_user.write().await;
-    current_user.activate_user_uuid = Some(uuid);
+    current_user.activate_user_uuid = Some(id.clone());
+    change_user(id.clone(),&app).await;
+    let _ = current_user.save(&app).await;
     Ok("".to_string())
 }

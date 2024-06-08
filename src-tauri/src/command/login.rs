@@ -179,7 +179,8 @@ pub async fn minecraft_profile(authflow_rwlock: State<'_,AuthFlow>, map:State<'_
                 warn!("Failed to save the user data. details: {}",e);
             }
             
-            crate::event::user::change_user(login_data.clone(),&app).await;
+            let id = login_data.profile.id.clone();
+            crate::event::user::change_user(id,&app).await;
             
             Ok(json!({
                     "status": "success"

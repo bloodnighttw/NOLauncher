@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {invoke} from "@tauri-apps/api/tauri";
 import {CenterView, DynamicGrid} from "../component/Compose.tsx";
-import {Link} from "react-router-dom";
+import {Link, useNavigate, useParams} from "react-router-dom";
 
 const have_account = (<h1 className="text-4xl">Select icon to switch</h1>);
 const no_account = (
@@ -25,6 +25,7 @@ const no_account = (
 interface LoginCardProps {
     image?: string;
     url?: string;
+    key?: string;
 }
 
 export function LoginCard(props: LoginCardProps) {
@@ -41,7 +42,7 @@ export function LoginCard(props: LoginCardProps) {
                 </svg>
 
                 :
-                <img src={props.image} alt="user" className="w-full h-full"/>
+                <img src={props.image} alt="user" className="w-full h-full rounded-xl"/>
             }
         </Link>
     );
@@ -64,10 +65,31 @@ export function Login() {
             )}
             <DynamicGrid len={user.length+1}>
                 {user.map((value, _) => (
-                    <LoginCard key={value.id} image={value.skins[0].url} url={"/"}/>
+                    <LoginCard key={value.id} image={"https://crafatar.com/avatars/"+value.id} url={"/login/"+value.id}/>
                 ))}
                 <LoginCard/>
             </DynamicGrid>
+        </CenterView>
+    );
+}
+
+export function UserProfile() {
+
+    const { id } = useParams();
+    let navigate = useNavigate();
+
+    let click = () => {
+        invoke("set_current_user",{id: id}).catch(console.error)
+        navigate("/login")
+    }
+
+    return (
+        <CenterView>
+            <h1>{id}</h1>
+            <div>
+                <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={click}>Switch to this account.
+                </button>
+            </div>
         </CenterView>
     );
 }

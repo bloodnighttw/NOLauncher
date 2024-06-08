@@ -3,10 +3,13 @@
 
 use std::collections::HashMap;
 use log::{LevelFilter, Log, Metadata, Record};
+use tauri::Manager;
 use minecraft::auth::AuthFlow;
 use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
 use crate::command::user::{get_current_user, get_users, set_current_user};
+use crate::event::user::change_user;
 use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
+use crate::utils::config::{NoLauncherConfig};
 
 mod utils;
 mod minecraft;
@@ -58,14 +61,28 @@ fn main() {
             minecraft_profile,
             get_users,
             get_current_user,
-            set_current_user
+            set_current_user,
         ])
         .setup(|app|{
             let handle = app.handle();
-            tauri::async_runtime::spawn(async move {
+            tauri::async_runtime::block_on(async move {
                 let res = read(&handle).await;
                 if let Err(e) = res {
                     log::error!("Failed to load the usermap: {}", e);
+                }
+
+                let config_path = handle.path_resolver().app_config_dir().unwrap();
+
+                match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
+                    Ok(config) => {
+                        if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
+                            change_user(id,&handle).await;
+                        }
+                        handle.manage(config);
+                    },
+                    Err(e) => {
+                        log::error!("Failed to load the config: {}", e);
+                    }
                 }
             });
             Ok(())

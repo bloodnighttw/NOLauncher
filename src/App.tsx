@@ -5,13 +5,13 @@ import {Home} from "./pages/Home.tsx";
 import {Server} from "./pages/Server.tsx";
 import {ModList} from "./pages/ModList.tsx";
 import {Settings} from "./pages/Settings.tsx";
-import {Login} from "./pages/Login.tsx";
+import {Login, UserProfile} from "./pages/Login.tsx";
 import {Auth} from "./pages/Auth.tsx";
-import React from "react";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
 }
+
 
 export function Content(props: ContentProps) {
     return (
@@ -30,21 +30,22 @@ export function Content(props: ContentProps) {
 
 export default function App() {
     return (
-        <>
-            <div className="flex flex-row">
-                <SideBar/>
-                <Content>
-                    <Routes>
-                        <Route path="/" element={<Home/>}/>
-                        <Route path="/server" element={<Server/>}/>
-                        <Route path="/modlist" element={<ModList/>}/>
-                        <Route path="/settings" element={<Settings/>}/>
-                        <Route path="/login" element={<Login/>}/>
-                        <Route path="/auth" element={<Auth/>}/>
-                    </Routes>
-                </Content>
-            </div>
+        <div className="flex flex-row">
+            <SideBar/>
+            <Content>
+                <Routes>
+                    <Route path="/" element={<Home/>}/>
+                    <Route path="/server" element={<Server/>}/>
+                    <Route path="/modlist" element={<ModList/>}/>
+                    <Route path="/settings" element={<Settings/>}/>
+                    <Route path="/login">
+                        <Route path="" element={<Login/>}/>
+                        <Route path=":id" element={<UserProfile/>}/>
+                    </Route>
+                    <Route path="/auth" element={<Auth/>}/>
+                </Routes>
+            </Content>
+        </div>
 
-        </>
     );
 }
