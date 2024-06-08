@@ -211,7 +211,7 @@ function AuthCode(props:AuthCodeProps){
 
 
 export function Auth() {
-    const [verfied, setVerified] = useState<Verify | null>(null)
+    const [verified, setVerified] = useState<Verify | null>(null)
     const [description, setDescription] = useState<Status | null>(null)
     const [all, setAll] = useState<boolean | null>(null)
 
@@ -242,15 +242,15 @@ export function Auth() {
         <Center>
             <div>
                 <StepParent>
-                    <StepChild condition={verfied != null} svg={account}>
+                    <StepChild condition={verified != null} svg={account}>
                         <h3 className="font-bold">Generating Device Auth Code</h3>
-                        <p> {verfied == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verfied.user_code}/> }</p>
+                        <p> {verified == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verified.user_code}/> }</p>
                     </StepChild>
                     <StepChild condition={description != null} svg={code} error={all === false}>
                         <h3 className="font-bold">Enter the code</h3>
-                        <p>Open {verfied?.verification_uri}</p>
-                        <p>in browser and enter code {verfied?.user_code}</p>
-                        {verfied == null || description != null ? "" : <LoginButton details={verfied}/>}
+                        <p>Open {verified?.verification_uri}</p>
+                        <p>in browser and enter code {verified?.user_code}</p>
+                        {verified == null || description != null ? "" : <LoginButton details={verified}/>}
                     </StepChild>
                     <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>

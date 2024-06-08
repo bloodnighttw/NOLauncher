@@ -19,7 +19,3 @@ interface Profile{
     skins:Array<Skin>,
     caps:Array<Caps>,
 }
-
-interface LoginAccount{
-    profile:Profile
-}
