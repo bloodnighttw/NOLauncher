@@ -1,12 +1,11 @@
 use tauri::{AppHandle, Manager};
 
 #[derive(Clone, serde::Serialize)]
-struct UUIDPayload{
+struct UUIDPayload {
     pub uuid: String,
 }
 
-pub async fn change_user(uuid:String,app: &AppHandle){
-    app.emit_all("change_user",UUIDPayload{
-        uuid: uuid.clone()
-    }).unwrap()
+pub async fn change_user(uuid: String, app: &AppHandle) {
+    app.emit("change_user", UUIDPayload { uuid: uuid.clone() })
+        .unwrap()
 }

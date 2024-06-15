@@ -1,9 +1,10 @@
-import {open} from "@tauri-apps/api/shell";
+import {open} from "@tauri-apps/plugin-shell";
 import {useEffect, useState} from "react";
-import {invoke} from "@tauri-apps/api/tauri";
 import {CenterView} from "../component/Compose.tsx";
 import {StepChild, StepParent} from "../component/Step.tsx";
 import {Loading} from "../component/Animation.tsx";
+import {invoke } from "@tauri-apps/api/core"
+import {MediumButton} from "../component/Button.tsx";
 
 interface Verify {
     verification_uri: string,
@@ -16,23 +17,6 @@ interface Status{
     description: string | null
 }
 
-interface LoginButtonProps {
-    details: Verify|null,
-}
-
-function LoginButton(props: LoginButtonProps) {
-
-    const handleClick = async () => {
-        await open(props.details?.verification_uri as string);
-    };
-
-    return (
-        <div>
-            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Open Browser
-            </button>
-        </div>
-    );
-}
 
 const code = (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
@@ -68,19 +52,6 @@ const Done = (
     </svg>
 )
 
-interface AuthCodeProps {
-    code: string
-}
-
-function AuthCode(props:AuthCodeProps){
-
-    return (
-        <div className="flex flex-row my-2">
-            <p className="font-bold text-4xl"> {props.code} </p>
-        </div>
-    )
-}
-
 export function Auth() {
     const [verified, setVerified] = useState<Verify | null>(null)
     const [description, setDescription] = useState<Status | null>(null)
@@ -108,6 +79,10 @@ export function Auth() {
 
     }, [setVerified,setDescription, setAll])
 
+    const handleClick =  () => {
+        open(verified?.verification_uri as string);
+    };
+
     // https://flowbite.com/docs/components/stepper/https://flowbite.com/docs/components/stepper/
     return (
         <CenterView>
@@ -115,20 +90,26 @@ export function Auth() {
                 <StepParent>
                     <StepChild condition={verified != null} svg={account}>
                         <h3 className="font-bold">Generating Device Auth Code</h3>
-                        <p> {verified == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verified.user_code}/> }</p>
+                        <p> {
+                            verified == null ? <Loading><p>please waiting......</p></Loading>
+                                :
+                                <div className="flex flex-row my-2">
+                                    <p className="font-bold text-4xl"> {verified.user_code} </p>
+                                </div>
+                        }
+                        </p>
                     </StepChild>
                     <StepChild condition={description != null} svg={code} error={all === false}>
                         <h3 className="font-bold">Enter the code</h3>
                         <p>Open {verified?.verification_uri}</p>
                         <p>in browser and enter code {verified?.user_code}</p>
-                        {verified == null || description != null ? "" : <LoginButton details={verified}/>}
+                        {verified == null || description != null ? "" : <MediumButton func={handleClick} text={"open in browser"}/>}
                     </StepChild>
                     <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>
                         {
                             all || description == null ? "" : <Loading>{description?.description}</Loading>
                         }
-
                     </StepChild>
                     <StepChild condition={all === true} svg={Done} error={all === false}>
                         <h3 className="font-bold">You are now log in!</h3>

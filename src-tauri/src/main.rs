@@ -1,25 +1,27 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::collections::HashMap;
-use log::{LevelFilter, Log, Metadata, Record};
-use tauri::Manager;
-use minecraft::auth::AuthFlow;
-use crate::command::login::{devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth, xbox_xsts_auth};
+use crate::command::login::{
+    devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth,
+    xbox_xsts_auth,
+};
 use crate::command::user::{get_current_user, get_users, set_current_user};
 use crate::event::user::change_user;
-use crate::minecraft::auth::{MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
-use crate::utils::config::{NoLauncherConfig};
+use crate::minecraft::auth::{read, MinecraftAuthorizationFlow, MinecraftUUIDMap};
+use crate::utils::config::NoLauncherConfig;
+use log::{LevelFilter, Log, Metadata, Record};
+use minecraft::auth::AuthFlow;
+use std::collections::HashMap;
+use tauri::Manager;
 
-mod utils;
-mod minecraft;
-mod event;
 mod command;
+mod event;
+mod minecraft;
+mod utils;
 
 struct Logger;
 
 impl Log for Logger {
-
     fn enabled(&self, _meta: &Metadata) -> bool {
         true
     }
@@ -33,23 +35,32 @@ impl Log for Logger {
 
 fn init_log() {
     static LOGGER: Logger = Logger;
-    if std::env::var("RUST_Debug").unwrap_or("false".to_string()) == "true"{
+    if std::env::var("RUST_Debug").unwrap_or("false".to_string()) == "true" {
         log::set_max_level(LevelFilter::Error);
-    }else{
+    } else {
         log::set_max_level(LevelFilter::Info)
     }
     log::set_logger(&LOGGER).unwrap();
 }
 
-const CLIENT_ID:&str = env!("MICROSOFT_CLIENT_ID");
+const CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 
 fn main() {
-
-    init_log();
+    
+    if !cfg!(debug_assertions){
+        init_log();
+    }
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
-    let usermap:MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
-    tauri::Builder::default()
+    let usermap: MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
+    let builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    let builder = builder.plugin(tauri_plugin_devtools::init());
+
+    builder
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(authflow)
         .manage(usermap)
         .invoke_handler(tauri::generate_handler![
@@ -63,7 +74,7 @@ fn main() {
             get_current_user,
             set_current_user,
         ])
-        .setup(|app|{
+        .setup(|app| {
             let handle = app.handle();
             tauri::async_runtime::block_on(async move {
                 let res = read(&handle).await;
@@ -71,15 +82,15 @@ fn main() {
                     log::error!("Failed to load the usermap: {}", e);
                 }
 
-                let config_path = handle.path_resolver().app_config_dir().unwrap();
+                let config_path = handle.path().app_config_dir().unwrap();
 
                 match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
                     Ok(config) => {
                         if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
-                            change_user(id,&handle).await;
+                            change_user(id, &handle).await;
                         }
                         handle.manage(config);
-                    },
+                    }
                     Err(e) => {
                         log::error!("Failed to load the config: {}", e);
                     }
