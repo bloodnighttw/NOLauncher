@@ -52,19 +52,6 @@ const Done = (
     </svg>
 )
 
-interface AuthCodeProps {
-    code: string
-}
-
-function AuthCode(props:AuthCodeProps){
-
-    return (
-        <div className="flex flex-row my-2">
-            <p className="font-bold text-4xl"> {props.code} </p>
-        </div>
-    )
-}
-
 export function Auth() {
     const [verified, setVerified] = useState<Verify | null>(null)
     const [description, setDescription] = useState<Status | null>(null)
@@ -103,7 +90,14 @@ export function Auth() {
                 <StepParent>
                     <StepChild condition={verified != null} svg={account}>
                         <h3 className="font-bold">Generating Device Auth Code</h3>
-                        <p> {verified == null ? <Loading><p>please waiting......</p></Loading> : <AuthCode code={verified.user_code}/> }</p>
+                        <p> {
+                            verified == null ? <Loading><p>please waiting......</p></Loading>
+                                :
+                                <div className="flex flex-row my-2">
+                                    <p className="font-bold text-4xl"> {verified.user_code} </p>
+                                </div>
+                        }
+                        </p>
                     </StepChild>
                     <StepChild condition={description != null} svg={code} error={all === false}>
                         <h3 className="font-bold">Enter the code</h3>
@@ -116,7 +110,6 @@ export function Auth() {
                         {
                             all || description == null ? "" : <Loading>{description?.description}</Loading>
                         }
-
                     </StepChild>
                     <StepChild condition={all === true} svg={Done} error={all === false}>
                         <h3 className="font-bold">You are now log in!</h3>
