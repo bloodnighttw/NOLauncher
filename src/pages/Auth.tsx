@@ -1,9 +1,9 @@
-import {open} from "@tauri-apps/api/shell";
+import {open} from "@tauri-apps/plugin-shell";
 import {useEffect, useState} from "react";
-import {invoke} from "@tauri-apps/api/tauri";
 import {CenterView} from "../component/Compose.tsx";
 import {StepChild, StepParent} from "../component/Step.tsx";
 import {Loading} from "../component/Animation.tsx";
+import {invoke } from "@tauri-apps/api/core"
 
 interface Verify {
     verification_uri: string,

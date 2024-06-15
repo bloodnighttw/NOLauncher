@@ -2,7 +2,7 @@ import "../index.css";
 import {Link, useLocation} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
-import {invoke} from "@tauri-apps/api/tauri";
+import {invoke} from "@tauri-apps/api/core";
 
 const homeSVG = (
     <svg

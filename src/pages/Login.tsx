@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
-import {invoke} from "@tauri-apps/api/tauri";
 import {CenterView, DynamicGrid} from "../component/Compose.tsx";
 import {Link, useNavigate, useParams} from "react-router-dom";
+import {invoke} from "@tauri-apps/api/core";
 
 const have_account = (<h1 className="text-4xl">Select icon to switch</h1>);
 const no_account = (

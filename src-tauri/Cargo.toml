@@ -8,11 +8,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1", features = [] }
+tauri-build = { version = "2.0.0-beta", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "clipboard-all", "window-all", "shell-open"] }
-serde = { version = "1", features = ["derive","rc"] }
+tauri = { version = "2.0.0-beta", features = [] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 tokio = { version = "1.25.0", features = ["full"] }
 reqwest = { version = "0.12.4", features = ["json", "blocking"] }
@@ -20,6 +20,8 @@ anyhow = "1.0.82"
 thiserror = "1.0.59"
 log = "0.4.21"
 chrono = "0.4.38"
+tauri-plugin-shell = "2.0.0-beta.7"
+tauri-plugin-clipboard-manager = "2.1.0-beta.4"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

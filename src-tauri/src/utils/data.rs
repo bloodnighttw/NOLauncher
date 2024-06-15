@@ -1,21 +1,27 @@
-use std::time::Duration;
 use chrono::{DateTime, Local};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use std::time::Duration;
 
-#[derive(Clone,Deserialize,Serialize,Debug,PartialEq)]
-pub struct TimeSensitiveData<T> where T: TimeSensitiveTrait {
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+pub struct TimeSensitiveData<T>
+where
+    T: TimeSensitiveTrait,
+{
     pub data: T,
     /// The time when the data was created.
-    #[serde(deserialize_with = "str_to_time",serialize_with = "time_to_str")]
-    pub time:DateTime<Local>,
+    #[serde(deserialize_with = "str_to_time", serialize_with = "time_to_str")]
+    pub time: DateTime<Local>,
 }
 
 pub trait TimeSensitiveTrait {
     fn get_duration(&self) -> Duration;
 }
 
-impl<T> TimeSensitiveData<T> where T: TimeSensitiveTrait {
+impl<T> TimeSensitiveData<T>
+where
+    T: TimeSensitiveTrait,
+{
     pub fn new(data: T) -> Self {
         Self {
             data,
@@ -24,26 +30,27 @@ impl<T> TimeSensitiveData<T> where T: TimeSensitiveTrait {
     }
 
     pub fn is_vaild(&self) -> bool {
-        let duration = (Local::now() - self.time).to_std().expect("Failed to convert chrono::Duration to std::Duration");
+        let duration = (Local::now() - self.time)
+            .to_std()
+            .expect("Failed to convert chrono::Duration to std::Duration");
         duration < self.data.get_duration()
     }
-
 }
 
 fn str_to_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<DateTime<Local>, D::Error> {
     Ok(match Value::deserialize(deserializer)? {
-        Value::String(str) =>{
+        Value::String(str) => {
             let t = str.as_str();
             let datetime = DateTime::parse_from_rfc3339(t).expect("Failed to parse time");
             datetime.with_timezone(&Local)
         }
-        _ => return Err(de::Error::custom("wrong type"))
+        _ => return Err(de::Error::custom("wrong type")),
     })
 }
 
 fn time_to_str<S>(x: &DateTime<Local>, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+where
+    S: Serializer,
 {
     s.serialize_str(x.to_rfc3339().as_str())
 }
