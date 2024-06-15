@@ -4,6 +4,7 @@ import {CenterView} from "../component/Compose.tsx";
 import {StepChild, StepParent} from "../component/Step.tsx";
 import {Loading} from "../component/Animation.tsx";
 import {invoke } from "@tauri-apps/api/core"
+import {MediumButton} from "../component/Button.tsx";
 
 interface Verify {
     verification_uri: string,
@@ -16,23 +17,6 @@ interface Status{
     description: string | null
 }
 
-interface LoginButtonProps {
-    details: Verify|null,
-}
-
-function LoginButton(props: LoginButtonProps) {
-
-    const handleClick = async () => {
-        await open(props.details?.verification_uri as string);
-    };
-
-    return (
-        <div>
-            <button className="h-8 text-sm font-semibold rounded-md shadow-md" onClick={handleClick}>Open Browser
-            </button>
-        </div>
-    );
-}
 
 const code = (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
@@ -108,6 +92,10 @@ export function Auth() {
 
     }, [setVerified,setDescription, setAll])
 
+    const handleClick =  () => {
+        open(verified?.verification_uri as string);
+    };
+
     // https://flowbite.com/docs/components/stepper/https://flowbite.com/docs/components/stepper/
     return (
         <CenterView>
@@ -121,7 +109,7 @@ export function Auth() {
                         <h3 className="font-bold">Enter the code</h3>
                         <p>Open {verified?.verification_uri}</p>
                         <p>in browser and enter code {verified?.user_code}</p>
-                        {verified == null || description != null ? "" : <LoginButton details={verified}/>}
+                        {verified == null || description != null ? "" : <MediumButton func={handleClick} text={"open in browser"}/>}
                     </StepChild>
                     <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>
