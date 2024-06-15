@@ -55,7 +55,7 @@ export function Login() {
         invoke("get_users").then((res) => {
             setUser(JSON.parse(res as string) as Array<Profile>)
         })
-    })
+    },[setUser])
 
     return (
         <CenterView>

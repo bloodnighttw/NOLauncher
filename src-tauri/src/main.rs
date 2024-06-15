@@ -46,11 +46,19 @@ fn init_log() {
 const CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 
 fn main() {
-    init_log();
+    
+    if !cfg!(debug_assertions){
+        init_log();
+    }
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
     let usermap: MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    let builder = builder.plugin(tauri_plugin_devtools::init());
+
+    builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .manage(authflow)
