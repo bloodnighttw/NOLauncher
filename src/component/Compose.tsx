@@ -9,10 +9,6 @@ interface DynamicGridProps {
     len: number,
 }
 
-interface InstanceProp {
-    img: string,
-    text: string
-}
 
 export function CenterView(props: Props) {
     return (
@@ -33,22 +29,3 @@ export function DynamicGrid(props: DynamicGridProps) {
     return <div className={"gap-8 p-4 grid grid-cols-4"+props.len}>{props.children}</div>
 }
 
-export function InstanceItem(props:InstanceProp) {
-    return <div className="flex flex-col p-4">
-        <div className="w-24 h-24 rounded-md">
-            <img src={props.img} className="w-20 h-20 mx-2 rounded-md object-cover"></img>
-        </div>
-        <div className="text-center text-md object-full w-24 h-12 text-ellipsis overflow-hidden">
-            {props.text}
-        </div>
-    </div>
-
-}
-
-export function InstanceList(props: Props) {
-    return (
-        <div className="flex flex-wrap gap-4 p-4">
-            {props.children}
-        </div>
-    )
-}
