@@ -7,16 +7,14 @@ use crate::command::login::{
 };
 use crate::command::user::{get_current_user, get_users, set_current_user};
 use crate::event::user::change_user;
-use crate::minecraft::auth::{read, MinecraftAuthorizationFlow, MinecraftUUIDMap};
 use crate::utils::config::NoLauncherConfig;
 use log::{LevelFilter, Log, Metadata, Record};
-use minecraft::auth::AuthFlow;
 use std::collections::HashMap;
 use tauri::Manager;
+use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod command;
 mod event;
-mod minecraft;
 mod utils;
 
 struct Logger;

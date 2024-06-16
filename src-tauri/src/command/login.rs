@@ -1,4 +1,4 @@
-use crate::minecraft::auth::{
+use crate::utils::minecraft::auth::{
     save, AuthFlow, MinecraftAuthError, MinecraftAuthStep, MinecraftUUIDMap,
 };
 use log::warn;

@@ -1,5 +1,5 @@
 use crate::event::user::change_user;
-use crate::minecraft::auth::MinecraftUUIDMap;
+use crate::utils::minecraft::auth::MinecraftUUIDMap;
 use crate::utils::config::LauncherConfig;
 use tauri::{AppHandle, State};
 

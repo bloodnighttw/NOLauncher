@@ -52,7 +52,7 @@ impl NoLauncherConfig {
                     )),
                 }
             }
-            Err(e) => Err(format!("Failed to read the config: {}", e.to_string())),
+            Err(e) => Err(format!("Failed to read the config: {}", e.to_string()))
         };
     }
 }
