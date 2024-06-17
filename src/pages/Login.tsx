@@ -2,7 +2,6 @@ import {useEffect, useState} from "react";
 import {CenterView, DynamicGrid} from "../component/Compose.tsx";
 import {Link, useNavigate, useParams} from "react-router-dom";
 import {invoke} from "@tauri-apps/api/core";
-import {MediumButton} from "../component/Button.tsx";
 
 const have_account = (<h1 className="text-4xl">Select icon to switch</h1>);
 const no_account = (
@@ -88,7 +87,9 @@ export function UserProfile() {
         <CenterView>
             <h1>{id}</h1>
             <div>
-                <MediumButton text={"switch to this account"} func={click} />
+                <button className="btn btn-sm shadow-none" onClick={click}>
+                    switch to this account
+                </button>
             </div>
         </CenterView>
     );

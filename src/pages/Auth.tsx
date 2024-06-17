@@ -3,7 +3,6 @@ import {useEffect, useState} from "react";
 import {CenterView} from "../component/Compose.tsx";
 import {StepChild, StepParent} from "../component/Step.tsx";
 import {invoke } from "@tauri-apps/api/core"
-import {MediumButton} from "../component/Button.tsx";
 
 interface Verify {
     verification_uri: string,
@@ -105,7 +104,10 @@ export function Auth() {
                         <h3 className="font-bold">Enter the code</h3>
                         <p>Open {verified?.verification_uri}</p>
                         <p>in browser and enter code {verified?.user_code}</p>
-                        {verified == null || description != null ? "" : <MediumButton func={handleClick} text={"open in browser"}/>}
+                        {
+                            verified == null || description != null ? ""
+                                : <button className="btn btn-sm shadow-lg"
+                                    onClick={handleClick}>open in browser</button>}
                     </StepChild>
                     <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>
