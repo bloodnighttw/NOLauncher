@@ -10,7 +10,9 @@ use crate::event::user::change_user;
 use crate::utils::config::NoLauncherConfig;
 use log::{LevelFilter, Log, Metadata, Record};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tauri::Manager;
+use tokio::sync::RwLock;
 use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod command;
@@ -90,7 +92,8 @@ fn main() {
                         handle.manage(config);
                     }
                     Err(e) => {
-                        log::error!("Failed to load the config: {}", e);
+                        log::error!("Failed to load the config,: {}", e);
+                        handle.manage(Arc::new(RwLock::new(NoLauncherConfig::default())));
                     }
                 }
             });
