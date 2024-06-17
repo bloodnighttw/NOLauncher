@@ -145,25 +145,9 @@ export default function SideBar() {
             data-tauri-drag-region={true}
         >
             <ul data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-8  bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky menu overflow-y-auto">
+                className="flex flex-col items-center w-20 h-screen py-4 bg-white border-r p-0 sticky menu overflow-y-auto">
                 <div className="flex flex-col flex-1 space-y-6" data-tauri-drag-region={true}>
                     {btnList.map((btn, index) => (
-                        // (identifyLink(location) === index
-                        //     ? <Link // select button
-                        //         key={index}
-                        //         to={btn.link}
-                        //         className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
-                        //     >
-                        //         {btn.icon}
-                        //     </Link>
-                        //     : <Link
-                        //         key={index}
-                        //         to={btn.link}
-                        //         className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-50"}
-                        //     >
-                        //         {btn.icon}
-                        //     </Link>
-                        // )
 
                         <li className="tooltip tooltip-right">
                             <Link
@@ -174,7 +158,6 @@ export default function SideBar() {
                                 {btn.icon}
                             </Link>
                         </li>
-
 
                         ))}
                 </div>
