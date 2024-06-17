@@ -145,7 +145,7 @@ export default function SideBar() {
             data-tauri-drag-region={true}
         >
             <ul data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-8 overflow-y-auto bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky menu">
+                className="flex flex-col items-center w-20 h-screen py-8  bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky menu overflow-y-auto">
                 <div className="flex flex-col flex-1 space-y-6" data-tauri-drag-region={true}>
                     {btnList.map((btn, index) => (
                         // (identifyLink(location) === index
@@ -180,32 +180,33 @@ export default function SideBar() {
                 </div>
 
 
-
                 <div className="flex flex-col space-y-6">
 
-                    {
-                        <li>
-                            <Link
-                                key={3}
-                                to="/settings"
-                                className={3 == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
-                            >
-                                {settingSVG}
-                            </Link>
-                        </li>
+
+                    <li>
+                        <Link
+                            key={3}
+                            to="/settings"
+                            className={3 == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
+                        >
+                            {settingSVG}
+                        </Link>
+                    </li>
 
 
-                    }
+                    <li>
+                        <Link to="/login"
+                              key={4}
+                              className={(user==null) ? 4 == identifyLink(location)? "p-1.5 focus" : "p-1.5" : "p-0"}
+                        >
+                            {
+                                user == null ? noaccount
+                                    : <UserImage id={user?.uuid}/>
+                            }
+                        </Link>
+                    </li>
 
-                    <Link to="/login"
-                    className={"text-gray-700 focus:outline-nones duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"}
-                    >
-                        {
-                            user == null ?
-                                noaccount:
-                                <UserImage id={user?.uuid}/>
-                        }
-                    </Link>
+
                 </div>
             </ul>
         </aside>
