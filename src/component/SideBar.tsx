@@ -139,8 +139,8 @@ export default function SideBar() {
         })
     }, [setUser])
 
-    const notSelect = "p-1.5 bg-base-300 rounded-md active:scale-90 transition-transform";
-    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90 transition-transform";
+    const notSelect = "p-1.5 bg-base-300 rounded-md active:scale-90 transition-transform duration-200";
+    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90 duration-200";
 
     return (
         <aside
