@@ -2,9 +2,7 @@ import {open} from "@tauri-apps/plugin-shell";
 import {useEffect, useState} from "react";
 import {CenterView} from "../component/Compose.tsx";
 import {StepChild, StepParent} from "../component/Step.tsx";
-import {Loading} from "../component/Animation.tsx";
 import {invoke } from "@tauri-apps/api/core"
-import {MediumButton} from "../component/Button.tsx";
 
 interface Verify {
     verification_uri: string,
@@ -91,11 +89,14 @@ export function Auth() {
                     <StepChild condition={verified != null} svg={account}>
                         <h3 className="font-bold">Generating Device Auth Code</h3>
                         <p> {
-                            verified == null ? <Loading><p>please waiting......</p></Loading>
-                                :
-                                <div className="flex flex-row my-2">
-                                    <p className="font-bold text-4xl"> {verified.user_code} </p>
+                            verified == null ? <div className="flex flex-row">
+                                    <span className="flex loading loading-spinner loading-xs p-2"></span>
+                                    <p className="p-2">please waiting......</p>
                                 </div>
+                            :
+                            <div className="flex flex-row my-2">
+                                <p className="font-bold text-4xl"> {verified.user_code} </p>
+                            </div>
                         }
                         </p>
                     </StepChild>
@@ -103,12 +104,18 @@ export function Auth() {
                         <h3 className="font-bold">Enter the code</h3>
                         <p>Open {verified?.verification_uri}</p>
                         <p>in browser and enter code {verified?.user_code}</p>
-                        {verified == null || description != null ? "" : <MediumButton func={handleClick} text={"open in browser"}/>}
+                        {
+                            verified == null || description != null ? ""
+                                : <button className="btn btn-sm shadow-lg"
+                                    onClick={handleClick}>open in browser</button>}
                     </StepChild>
                     <StepChild condition={all === true} svg={xbox} error={all === false}>
                         <h3 className="font-bold">Fetching your data</h3>
                         {
-                            all || description == null ? "" : <Loading>{description?.description}</Loading>
+                            all || description == null ? "" : <div className="flex flex-row">
+                                <span className="flex loading loading-spinner loading-xs p-2"></span>
+                                <p className="p-2">{description?.description}</p>
+                            </div>
                         }
                     </StepChild>
                     <StepChild condition={all === true} svg={Done} error={all === false}>

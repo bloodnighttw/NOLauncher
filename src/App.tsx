@@ -18,10 +18,10 @@ export function Content(props: ContentProps) {
         <div className="flex flex-col h-screen w-full">
             <div
                 data-tauri-drag-region={true}
-                className="h-8 bg-gray-100 w-full flex flex-row sticky"
+                className="h-8 bg-base-200 w-full flex flex-row sticky"
             >
             </div>
-            <div className="w-full h-full overflow-y-auto">
+            <div className="w-full h-full overflow-y-auto bg-base-200">
                 {props.children}
             </div>
         </div>
