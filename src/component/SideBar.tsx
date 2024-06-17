@@ -93,18 +93,16 @@ const settingSVG = (
 )
 
 const noaccount = (
-    <div className="p-1.5">
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
-        </svg>
-    </div>
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round"
+              d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+    </svg>
 )
 
 const btnList = [
@@ -143,50 +141,59 @@ export default function SideBar() {
 
 
     return (
-        <>
-            <aside data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-8 overflow-y-auto bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky">
-                <nav className="flex flex-col flex-1 space-y-6">
+        <aside
+            data-tauri-drag-region={true}
+        >
+            <ul data-tauri-drag-region={true}
+                className="flex flex-col items-center w-20 h-screen py-8 overflow-y-auto bg-white border-r dark:bg-zinc-900 dark:border-zinc-700 sticky menu">
+                <div className="flex flex-col flex-1 space-y-6" data-tauri-drag-region={true}>
                     {btnList.map((btn, index) => (
-                        (identifyLink(location) === index
-                            ? <Link // select button
+                        // (identifyLink(location) === index
+                        //     ? <Link // select button
+                        //         key={index}
+                        //         to={btn.link}
+                        //         className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
+                        //     >
+                        //         {btn.icon}
+                        //     </Link>
+                        //     : <Link
+                        //         key={index}
+                        //         to={btn.link}
+                        //         className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-50"}
+                        //     >
+                        //         {btn.icon}
+                        //     </Link>
+                        // )
+
+                        <li className="tooltip tooltip-right">
+                            <Link
                                 key={index}
                                 to={btn.link}
-                                className={"p-1.5 text-gray-900 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
+                                className={index == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
                             >
                                 {btn.icon}
                             </Link>
-                            : <Link
-                                key={index}
-                                to={btn.link}
-                                className={"p-1.5 text-gray-700 focus:outline-nones  duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-50"}
-                            >
-                                {btn.icon}
-                            </Link>
-                        )
+                        </li>
 
-                    ))}
-                </nav>
 
-                <div className="flex flex-col space-y-6 sticky">
+                        ))}
+                </div>
+
+
+
+                <div className="flex flex-col space-y-6">
 
                     {
-                        (identifyLink(location) === 3 // select setting
-                                ? <Link
-                                    key={3}
-                                    to="/settings"
-                                    className={"p-1.5 text-gray-900 focus:outline-nones duration-200 rounded-lg dark:text-gray-300 dark:bg-gray-800 bg-gray-100 hover:text-gray-900 dark:hover:text-gray-100"}
-                                >
-                                    {settingSVG}
-                                </Link>
-                                : <Link
-                                    key={3}
-                                    to="/settings"
-                                    className={"p-1.5 text-gray-700 focus:outline-nones duration-200 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"}
-                                >
-                                    {settingSVG}
-                                </Link>
-                        )
+                        <li>
+                            <Link
+                                key={3}
+                                to="/settings"
+                                className={3 == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
+                            >
+                                {settingSVG}
+                            </Link>
+                        </li>
+
 
                     }
 
@@ -200,7 +207,7 @@ export default function SideBar() {
                         }
                     </Link>
                 </div>
-            </aside>
-        </>
+            </ul>
+        </aside>
     );
 }
