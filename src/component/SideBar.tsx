@@ -139,59 +139,56 @@ export default function SideBar() {
         })
     }, [setUser])
 
+    const notSelect = "p-1.5 bg-base-300 rounded-md active:scale-90 transition-transform";
+    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90 transition-transform";
 
     return (
         <aside
             data-tauri-drag-region={true}
         >
-            <ul data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-4 bg-white border-r p-0 sticky menu overflow-y-auto">
-                <div className="flex flex-col flex-1 space-y-6" data-tauri-drag-region={true}>
+            <nav data-tauri-drag-region={true}
+                className="flex flex-col items-center w-20 h-screen py-4 bg-white p-0 sticky overflow-y-auto bg-base-100 ">
+                <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
                     {btnList.map((btn, index) => (
 
-                        <li className="tooltip tooltip-right">
-                            <Link
-                                key={index}
-                                to={btn.link}
-                                className={index == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
-                            >
-                                {btn.icon}
-                            </Link>
-                        </li>
+
+                        <Link
+                            key={index}
+                            to={btn.link}
+                            className={index == identifyLink(location) ? notSelect : selected}
+                        >
+                            {btn.icon}
+                        </Link>
 
                         ))}
                 </div>
 
 
-                <div className="flex flex-col space-y-6">
+                <div className="flex flex-col gap-4">
 
 
-                    <li>
                         <Link
                             key={3}
                             to="/settings"
-                            className={3 == identifyLink(location) ? "p-1.5 focus" : "p-1.5"}
+                            className={3 == identifyLink(location) ? notSelect : selected}
                         >
                             {settingSVG}
                         </Link>
-                    </li>
 
 
-                    <li>
                         <Link to="/login"
                               key={4}
-                              className={(user==null) ? 4 == identifyLink(location)? "p-1.5 focus" : "p-1.5" : "p-0"}
+                              className={(user==null) ? 4 == identifyLink(location)? notSelect : selected : "p-0 active:scale-90 transition-transform"}
                         >
                             {
                                 user == null ? noaccount
                                     : <UserImage id={user?.uuid}/>
                             }
                         </Link>
-                    </li>
 
 
                 </div>
-            </ul>
+            </nav>
         </aside>
     );
 }
