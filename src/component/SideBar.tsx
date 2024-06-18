@@ -122,6 +122,7 @@ function identifyLink(args: any) {
 export default function SideBar() {
     let location = useLocation();
     let [user, setUser] = useState<UUIDPayload | null>(null);
+    let [menu, setMenu] = useState<boolean>(false);
 
     let work = async () => {
         await listen<UUIDPayload>("change_user", (event) => {
@@ -140,55 +141,129 @@ export default function SideBar() {
     }, [setUser])
 
     const notSelect = "p-1.5 bg-base-300 rounded-md active:scale-90 transition-transform duration-200";
-    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90 duration-200";
+    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90";
+    const selectdNoAnimation = "p-1.5 rounded-md duration-200";
 
+    const show = "dropdown-open dropdown dropdown-right dropdown-end absolute "
+    const notShow = "dropdown dropdown-right dropdown-end absolute invisible"
     return (
-        <aside
-            data-tauri-drag-region={true}
-        >
-            <nav data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-4 bg-white p-0 sticky overflow-y-auto bg-base-100 ">
-                <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
-                    {btnList.map((btn, index) => (
+
+        <aside data-tauri-drag-region={true}
+               className="flex flex-col items-center w-20 h-screen py-4 overflow-y-auto bg-base-100 overflow-hidden gap-4">
+            <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
+                {btnList.map((btn, index) => (
 
 
-                        <Link
-                            key={index}
-                            to={btn.link}
-                            className={index == identifyLink(location) ? notSelect : selected}
-                        >
-                            {btn.icon}
-                        </Link>
+                    <Link
+                        key={index}
+                        to={btn.link}
+                        className={index == identifyLink(location) ? notSelect : selected}
+                    >
+                        {btn.icon}
+                    </Link>
 
-                        ))}
+                ))}
+            </div>
+
+            <div className="flex flex-col">
+
+
+                <Link
+                    key={3}
+                    to="/settings"
+                    className={3 == identifyLink(location) ? notSelect : selected}
+                >
+                    {settingSVG}
+                </Link>
+
+            </div>
+
+            <div className="flex flex-col">
+                <div
+                    className={menu ? selectdNoAnimation : "p-1.5 duration-200 rounded-md active:scale-90"}
+                    onClick={() => setMenu(true)}
+                    onMouseLeave={() => setMenu(false)}
+                >
+
+                    {
+                        user == null ? noaccount
+                            : <UserImage id={user?.uuid}/>
+                    }
+
+
+                    <div className={menu ? show : notShow}>
+                        <div tabindex="0"
+                             class="dropdown-content menu z-[100] shadow-lg bg-base-100 rounded-md w-96">
+                            <div className="max-h-80 overflow-y-auto">
+                                <a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/><a href={"https://google.com"}>123123213</a>
+                                <br/>
+
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-
-
-                <div className="flex flex-col gap-4">
-
-
-                        <Link
-                            key={3}
-                            to="/settings"
-                            className={3 == identifyLink(location) ? notSelect : selected}
-                        >
-                            {settingSVG}
-                        </Link>
-
-
-                        <Link to="/login"
-                              key={4}
-                              className={(user==null) ? 4 == identifyLink(location)? notSelect : selected : "p-0 active:scale-90 transition-transform"}
-                        >
-                            {
-                                user == null ? noaccount
-                                    : <UserImage id={user?.uuid}/>
-                            }
-                        </Link>
-
-
-                </div>
-            </nav>
+            </div>
         </aside>
     );
 }
