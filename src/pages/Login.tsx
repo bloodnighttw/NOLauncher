@@ -46,44 +46,51 @@ const logout =
 
 export function Login() {
     const [user, setUser] = useState<Array<Profile>>([])
+    const [current,setCurrent] = useState<UUIDPayload|null>(null)
 
     useEffect(() => {
         invoke("get_users").then((res) => {
             setUser(JSON.parse(res as string) as Array<Profile>)
-        })
-    }, [setUser])
+        }).catch(console.error)
+
+        invoke("get_current_user").then((res) => {
+            setCurrent({
+                uuid: res as string
+            })
+        }).catch(console.error)
+    }, [setUser, setCurrent])
+
+    const select = "bg-base-200 rounded-md flex gap-4 p-3 w-96 cursor-pointer";
+    const noSelect = "hover:bg-base-200 rounded-md flex gap-4 p-3 w-96 duration-200 cursor-pointer"
 
     return (
         <CenterView>
-            <div className="overflow-x-auto bg-base-100 rounded-md p-1.5 shadow-md flex-col">
-                <table className="table">
+            <div className="overflow-x-auto bg-base-100 rounded-md p-1.5 shadow-md flex-col space-y-1.5">
 
-                    {user.map((profile, _) => (
+                {user.map((profile, _) => (
 
-                        <tr className="bg-base-200 rounded-md">
-                            <th><img className="w-6 h-6 rounded-sm" src={"https://crafatar.com/avatars/" + profile.id}/>
-                            </th>
-                            <td>{profile.name}</td>
-                            <td className="text-right">{setting}</td>
-                            <td className="text-right">{logout}</td>
-                        </tr>
+                    <div className={current?.uuid == profile.id ? select : noSelect}>
+                        <div className="basis-1/4"><img className="w-6 h-6 rounded-sm"
+                                                        src={"https://crafatar.com/avatars/" + profile.id}/>
+                        </div>
+                        <div className="text-left basis-1/2" onClick={() => console.log("clicked")}>{profile.name}</div>
 
-
-                    ))}
+                        <div className="text-right basis-1/8 active:scale-90 duration-200">{setting}</div>
+                        <div className="text-right basis-1/8 active:scale-90 duration-200">{logout}</div>
+                    </div>
 
 
-                </table>
+                ))}
 
-                <div className="items-center text-center p-1.5">
-                    <Link
-                        key={3}
-                        to="/auth"
-                        className="text-center"
-                    >
-                        Add Account Here
 
-                    </Link>
+                <div className={noSelect + " content-center"}>
+                    <div className="basis-1/4"><img className="w-6 h-6 rounded-sm"
+                                                    src={"https://crafatar.com/avatars/"}/>
+                    </div>
+                    <div className="text-left basis-1/2 active:scale-90 duration-200">Add Account Here</div>
+
                 </div>
+
 
             </div>
         </CenterView>
@@ -102,7 +109,7 @@ export function UserProfile() {
 
     return (
         <CenterView>
-            <h1>{id}</h1>
+        <h1>{id}</h1>
             <div>
                 <button className="btn btn-sm shadow-none" onClick={click}>
                     switch to this account
