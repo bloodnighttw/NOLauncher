@@ -15,7 +15,7 @@ interface Caps{
 
 interface Profile{
     id:string,
-    username:string,
+    name:string,
     skins:Array<Skin>,
     caps:Array<Caps>,
 }
