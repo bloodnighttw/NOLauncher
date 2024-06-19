@@ -105,6 +105,28 @@ const noaccount = (
     </svg>
 )
 
+const setting =
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
+         className="size-6">
+        <path strokeLinecap="round" strokeLinejoin="round"
+              d="M6 13.5V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m12-3V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m-6-9V3.75m0 3.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 9.75V10.5"/>
+    </svg>
+
+const logout =
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="size-6 text-error">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" x2="9" y1="12" y2="12"/>
+    </svg>
+
+const newAccont =
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
+         className="size-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+    </svg>
+
+
 const btnList = [
     {icon: homeSVG, link: "/"},
     {icon: serverSVG, link: "/server"},
@@ -122,6 +144,9 @@ function identifyLink(args: any) {
 export default function SideBar() {
     let location = useLocation();
     let [user, setUser] = useState<UUIDPayload | null>(null);
+    let [menu, setMenu] = useState<boolean>(false);
+    const [users, setUsers] = useState<Array<Profile>>([])
+
 
     let work = async () => {
         await listen<UUIDPayload>("change_user", (event) => {
@@ -139,56 +164,118 @@ export default function SideBar() {
         })
     }, [setUser])
 
-    const notSelect = "p-1.5 bg-base-300 rounded-md active:scale-90 transition-transform duration-200";
-    const selected = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90 duration-200";
+    const selected = "p-1.5 bg-base-300 rounded-md transition-transform duration-200";
+    const notSelect = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90";
+
+    const show = "dropdown-open dropdown dropdown-right dropdown-end absolute "
+    const notShow = "dropdown dropdown-right dropdown-end absolute invisible"
+
+    const userNotSelect = "bg-base-200 rounded-md flex p-3 cursor-pointer gap-4"
+    const userSelect = "hover:bg-base-200 rounded-md flex p-3 duration-200 cursor-pointer gap-4"
+
 
     return (
-        <aside
-            data-tauri-drag-region={true}
-        >
-            <nav data-tauri-drag-region={true}
-                className="flex flex-col items-center w-20 h-screen py-4 bg-white p-0 sticky overflow-y-auto bg-base-100 ">
-                <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
-                    {btnList.map((btn, index) => (
+
+        <aside data-tauri-drag-region={true}
+               className="flex flex-col items-center w-20 h-screen py-4 overflow-y-auto bg-base-100 overflow-hidden gap-4">
+            <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
+                {btnList.map((btn, index) => (
 
 
-                        <Link
-                            key={index}
-                            to={btn.link}
-                            className={index == identifyLink(location) ? notSelect : selected}
-                        >
-                            {btn.icon}
-                        </Link>
+                    <Link
+                        key={index}
+                        to={btn.link}
+                        className={index == identifyLink(location) ? selected : notSelect}
+                    >
+                        {btn.icon}
+                    </Link>
 
-                        ))}
+                ))}
+            </div>
+
+            <div className="flex flex-col">
+
+
+                <Link
+                    key={3}
+                    to="/settings"
+                    className={3 == identifyLink(location) ? selected : notSelect}
+                >
+                    {settingSVG}
+                </Link>
+
+            </div>
+
+            <div className="flex flex-col">
+                <div
+                    className="p-1.5 duration-200 rounded-md"
+                    onClick={() => {
+                        invoke("get_users").then((res) => {
+                            setUsers(JSON.parse(res as string) as Array<Profile>)
+                        }).catch(console.error)
+                        setMenu(true)
+                    }}
+                    onMouseLeave={() => setMenu(false)}
+                >
+
+                    {
+                        user == null ? noaccount
+                            : <UserImage id={user?.uuid}/>
+                    }
+
+
+                    <div className={menu ? show : notShow}>
+                        <div tabindex="0"
+                             class="dropdown-content z-[1000] shadow-lg bg-base-100 rounded-md w-96">
+                            <div className="max-h-80 overflow-y-auto p-3">
+                                <div
+                                    className="bg-base-100 flex-col space-y-1.5">
+
+                                    {users.map((profile, _) => (
+
+                                        <div className={user?.uuid == profile.id ? userNotSelect : userSelect}>
+                                            <div className="flex-1"
+                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}
+                                            ><img className="w-6 h-6 rounded-sm" src={"https://crafatar.com/avatars/" + profile.id}/>
+                                            </div>
+                                            <div className="grow"
+                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}>{profile.name}</div>
+
+                                            <div
+                                                className="text-right flex-none active:scale-90 duration-200">
+                                                <Link
+                                                    to={"/login/" + profile.id}
+                                                >
+                                                    {setting}
+
+                                                </Link>
+
+                                            </div>
+                                            <div
+                                                className="text-right flex-none active:scale-90 duration-200">{logout}</div>
+                                        </div>
+
+
+                                    ))}
+
+
+                                    <Link className={userSelect + " justify-center active:scale-90"}
+                                          to="/auth"
+                                    >
+                                        <div
+                                            className="text-left flex-none active:scale-90 duration-200">{newAccont}</div>
+                                    </Link>
+
+
+                                </div>
+
+
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-
-
-                <div className="flex flex-col gap-4">
-
-
-                        <Link
-                            key={3}
-                            to="/settings"
-                            className={3 == identifyLink(location) ? notSelect : selected}
-                        >
-                            {settingSVG}
-                        </Link>
-
-
-                        <Link to="/login"
-                              key={4}
-                              className={(user==null) ? 4 == identifyLink(location)? notSelect : selected : "p-0 active:scale-90 transition-transform"}
-                        >
-                            {
-                                user == null ? noaccount
-                                    : <UserImage id={user?.uuid}/>
-                            }
-                        </Link>
-
-
-                </div>
-            </nav>
+            </div>
         </aside>
     );
 }
