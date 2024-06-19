@@ -225,8 +225,7 @@ export default function SideBar() {
 
 
                     <div className={menu ? show : notShow}>
-                        <div tabindex="0"
-                             class="dropdown-content z-[1000] shadow-lg bg-base-100 rounded-md w-96">
+                        <div className="dropdown-content z-[1000] shadow-lg bg-base-100 rounded-md w-96">
                             <div className="max-h-80 overflow-y-auto p-3">
                                 <div
                                     className="bg-base-100 flex-col space-y-1.5">
