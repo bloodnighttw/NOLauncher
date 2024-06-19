@@ -185,7 +185,7 @@ pub async fn minecraft_profile(
             }
 
             let id = login_data.profile.id.clone();
-            crate::event::user::change_user(id, &app).await;
+            crate::event::user::change_user(Some(id), &app).await;
 
             Ok(json!({
                 "status": "success"

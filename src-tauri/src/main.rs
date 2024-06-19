@@ -5,7 +5,7 @@ use crate::command::login::{
     devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth,
     xbox_xsts_auth,
 };
-use crate::command::user::{get_current_user, get_users, set_current_user};
+use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
 use crate::event::user::change_user;
 use crate::utils::config::NoLauncherConfig;
 use log::{LevelFilter, Log, Metadata, Record};
@@ -73,6 +73,7 @@ fn main() {
             get_users,
             get_current_user,
             set_current_user,
+            logout_user
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -87,7 +88,7 @@ fn main() {
                 match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
                     Ok(config) => {
                         if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
-                            change_user(id, &handle).await;
+                            change_user(Some(id), &handle).await;
                         }
                         handle.manage(config);
                     }

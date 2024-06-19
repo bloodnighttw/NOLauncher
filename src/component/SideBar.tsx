@@ -252,7 +252,9 @@ export default function SideBar() {
 
                                             </div>
                                             <div
-                                                className="text-right flex-none active:scale-90 duration-200">{logout}</div>
+                                                className="text-right flex-none active:scale-90 duration-200"
+                                                onClick={() => invoke("logout_user", {id: profile.id}).catch(console.error)}
+                                            >{logout}</div>
                                         </div>
 
 
