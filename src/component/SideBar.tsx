@@ -162,10 +162,6 @@ export default function SideBar() {
             });
             console.log(res)
         })
-
-        invoke("get_users").then((res) => {
-            setUsers(JSON.parse(res as string) as Array<Profile>)
-        }).catch(console.error)
     }, [setUser])
 
     const selected = "p-1.5 bg-base-300 rounded-md transition-transform duration-200";
@@ -176,6 +172,8 @@ export default function SideBar() {
 
     const userNotSelect = "bg-base-200 rounded-md flex p-3 cursor-pointer gap-4"
     const userSelect = "hover:bg-base-200 rounded-md flex p-3 duration-200 cursor-pointer gap-4"
+
+
     return (
 
         <aside data-tauri-drag-region={true}
@@ -211,7 +209,12 @@ export default function SideBar() {
             <div className="flex flex-col">
                 <div
                     className="p-1.5 duration-200 rounded-md"
-                    onClick={() => setMenu(true)}
+                    onClick={() => {
+                        invoke("get_users").then((res) => {
+                            setUsers(JSON.parse(res as string) as Array<Profile>)
+                        }).catch(console.error)
+                        setMenu(true)
+                    }}
                     onMouseLeave={() => setMenu(false)}
                 >
 
@@ -231,16 +234,17 @@ export default function SideBar() {
                                     {users.map((profile, _) => (
 
                                         <div className={user?.uuid == profile.id ? userNotSelect : userSelect}>
-                                            <div className="flex-1"><img className="w-6 h-6 rounded-sm"
-                                                                         src={"https://crafatar.com/avatars/" + profile.id}/>
+                                            <div className="flex-1"
+                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}
+                                            ><img className="w-6 h-6 rounded-sm" src={"https://crafatar.com/avatars/" + profile.id}/>
                                             </div>
                                             <div className="grow"
-                                                 onClick={() => console.log("clicked")}>{profile.name}</div>
+                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}>{profile.name}</div>
 
                                             <div
                                                 className="text-right flex-none active:scale-90 duration-200">
                                                 <Link
-                                                    to={"/login/"+profile.id}
+                                                    to={"/login/" + profile.id}
                                                 >
                                                     {setting}
 
