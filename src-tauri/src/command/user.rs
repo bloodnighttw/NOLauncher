@@ -29,7 +29,25 @@ pub async fn set_current_user(
 ) -> Result<String, String> {
     let mut current_user = current_user.write().await;
     current_user.activate_user_uuid = Some(id.clone());
-    change_user(id.clone(), &app).await;
+    change_user(Some(id), &app).await;
     let _ = current_user.save(&app).await;
+    Ok("".to_string())
+}
+
+#[tauri::command]
+pub async fn logout_user(
+    map: State<'_, MinecraftUUIDMap>,
+    current_user: State<'_, LauncherConfig>,
+    app: AppHandle,
+    id: String,
+) -> Result<String, String> {
+    {
+        let mut map = map.write().await;
+        map.remove(&id);
+        change_user(None, &app).await;
+        let mut current_user = current_user.write().await;
+        current_user.activate_user_uuid = None;
+        let _ = current_user.save(&app).await;
+    }
     Ok("".to_string())
 }
