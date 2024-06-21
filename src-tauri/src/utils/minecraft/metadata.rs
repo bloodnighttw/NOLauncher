@@ -168,7 +168,7 @@ pub struct PackageDetails{
 #[cfg(test)]
 mod test{
     use serde_json::json;
-    use crate::utils::metadata::data::{PackageDetails, PackageInfo, Rule};
+    use crate::utils::minecraft::metadata::{PackageDetails, PackageInfo, Rule};
 
     #[tokio::test]
     async fn test_version_info(){
