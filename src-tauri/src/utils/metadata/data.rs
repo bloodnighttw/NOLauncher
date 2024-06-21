@@ -38,6 +38,19 @@ pub struct VersionInfoList{
     versions:Vec<VersionInfo>
 }
 
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum Platform{
+    Windows,
+    WindowsArm64,
+    Linux,
+    LinuxArm32,
+    LinuxArm64,
+    MacOs,
+    MacOsArm64,
+    Unknown
+}
+
 #[cfg(test)]
 mod test{
     use crate::utils::metadata::data::VersionInfoList;
@@ -55,7 +68,7 @@ mod test{
             "https://meta.prismlauncher.org/v1/org.lwjgl/",
             "https://meta.prismlauncher.org/v1/org.lwjgl3/",
         ];
-        
+
         for i in &test_api{
             let res = reqwest::get(i.to_string()).await.unwrap().json::<VersionInfoList>().await.unwrap();
             //println!("{:?}",res);
