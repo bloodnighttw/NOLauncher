@@ -25,7 +25,8 @@ pub struct VersionInfo{
         default
     )]
     conflicts:Vec<DependencyPackage>,
-    version:String
+    version:String,
+    volatile:bool
 }
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
@@ -59,7 +60,5 @@ mod test{
             let res = reqwest::get(i.to_string()).await.unwrap().json::<VersionInfoList>().await.unwrap();
             //println!("{:?}",res);
         }
-
     }
-
 }
