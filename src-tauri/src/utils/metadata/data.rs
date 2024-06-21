@@ -3,25 +3,25 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{Value};
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
-struct DependencyPackage {
-    suggests:Option<String>,
-    equals:Option<String>,
-    uid: String
+pub struct DependencyPackage {
+    pub suggests:Option<String>,
+    pub equals:Option<String>,
+    pub uid: String
 }
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionInfo{
-    recommended:bool,
-    release_time:String,
-    sha256:String,
+    pub recommended:bool,
+    pub release_time:String,
+    pub sha256:String,
     #[serde(rename="type")]
-    rtype:Option<String>,
+    pub rtype:Option<String>,
     #[serde(
         skip_serializing_if = "Vec::is_empty",
         default
     )]
-    requires:Vec<DependencyPackage>,
+    pub requires:Vec<DependencyPackage>,
     #[serde(
         skip_serializing_if = "Vec::is_empty",
         default
@@ -131,8 +131,8 @@ pub struct CommonLibrary {
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 pub struct MavenLibrary{
-    name:String,
-    url:String,
+    pub name:String,
+    pub url:String,
 }
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
@@ -146,23 +146,23 @@ pub enum Library{
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageDetails{
-    format_version: i32,
+    pub format_version: i32,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    conflicts:Vec<DependencyPackage>,
+    pub conflicts:Vec<DependencyPackage>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    requires:Vec<DependencyPackage>,
+    pub requires:Vec<DependencyPackage>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    libraries:Vec<Library>,
-    name:String,
-    uid:String,
-    release_time:String,
+    pub libraries:Vec<Library>,
+    pub name:String,
+    pub uid:String,
+    pub release_time:String,
     #[serde(rename="type")]
-    type_:Option<String>, // neoforged hasn't this field
-    version:String,
-    volatile: Option<bool>,
-    main_class:Option<String>,
-    main_jar:Option<CommonLibrary>,
-    minecraft_arguments:Option<String>, 
+    pub type_:Option<String>, // neoforged hasn't this field
+    pub version:String,
+    pub volatile: Option<bool>,
+    pub main_class:Option<String>,
+    pub main_jar:Option<CommonLibrary>,
+    pub minecraft_arguments:Option<String>,
 }
 
 #[cfg(test)]
