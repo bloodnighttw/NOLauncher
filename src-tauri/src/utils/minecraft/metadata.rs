@@ -3,7 +3,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{Value};
 
 /// This struct is used to store the required or conflict package information.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct DependencyPackage {
     pub suggests:Option<String>,
     pub equals:Option<String>,
@@ -13,7 +13,7 @@ pub struct DependencyPackage {
 /// For package version info, like: minecraft "1.8.9", fabric-loader "0.15.1",etc.
 /// This struct is used to store the version info of a package, but we don't store
 /// the package details, like dependencies, libraries, main class, etc.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionInfo{
     pub recommended:bool,
@@ -37,7 +37,7 @@ pub struct VersionInfo{
 
 /// For package details, like: minecraft, fabric-loader, etc.
 /// This struct is used to store the package details, like the name, uid, versions, etc.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageDetails {
     format_version:i32,
@@ -47,7 +47,7 @@ pub struct PackageDetails {
 }
 
 /// This enum list all supported platforms.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub enum Platform{
     #[serde(rename = "windows")]
     Windows,
@@ -66,7 +66,7 @@ pub enum Platform{
 
 /// This struct is used to store the rule of a library, which contain the information about
 /// the package is need to install on the specific platform or not.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct Rule{
     action:Action,
     #[serde(deserialize_with = "os_processing", default)]
@@ -74,7 +74,7 @@ pub struct Rule{
 }
 
 /// Allow mean this rule is allow on the rule's platform, disallow mean this rule is disallow on the rule's platform.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub enum Action{
     #[serde(rename = "allow")]
     Allow,
@@ -108,7 +108,7 @@ fn os_processing<'de, D: Deserializer<'de>>(deserializer: D) -> anyhow::Result<O
 }
 
 /// This struct is used to store the artifact information of a library or client.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct Artifact{
     pub url:String,
     pub size:i64,
@@ -118,7 +118,7 @@ pub struct Artifact{
 /// This struct is used to store the download information of a library or client.
 /// It contains the artifact information or classifiers information, classifiers
 /// is used to store some platform-specific libraries.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct Download{
     artifact:Option<Artifact>,
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
@@ -126,14 +126,14 @@ pub struct Download{
 }
 
 /// This struct is used to store the extract information of a library.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct Extract{
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     exclude:Vec<String>
 }
 
 /// This struct is used to store the common library information.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct CommonLibrary {
     name:String,
     downloads:Download,
@@ -145,7 +145,7 @@ pub struct CommonLibrary {
 }
 
 /// This struct is used to store the maven-based library information.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct MavenLibrary{
     pub name:String,
     pub url:String,
@@ -153,7 +153,7 @@ pub struct MavenLibrary{
 
 /// This enum is used to store the library information, it contains the common library
 /// information or maven-based library information.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 #[serde(untagged)]
 pub enum Library{
     Common(CommonLibrary),
@@ -162,7 +162,7 @@ pub enum Library{
 
 /// This struct is used to store the version details of a package, like minecraft, fabric-loader, etc.
 /// Compared with VersionInfo, this struct contains more details, like the dependencies, libraries, main class, etc.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionDetails {
     pub format_version: i32,
