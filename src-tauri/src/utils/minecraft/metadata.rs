@@ -1,6 +1,32 @@
 use std::collections::HashMap;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer};
 use serde_json::{Value};
+
+#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageList{
+    format_version:i32,
+    #[serde(deserialize_with = "package_vec_to_map")]
+    packages:HashMap<String,PackageInfo>
+}
+
+#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageInfo{
+    name:String,
+    sha256:String,
+    uid:String
+}
+
+fn package_vec_to_map<'de, D: Deserializer<'de>>(deserializer: D) -> Result<HashMap<String,PackageInfo>, D::Error> {
+    let vec = Vec::<PackageInfo>::deserialize(deserializer)?;
+    let mut map = HashMap::new();
+    for i in vec{
+        map.insert(i.uid.clone(),i);
+    }
+    Ok(map)
+}
+
 
 /// This struct is used to store the required or conflict package information.
 #[derive(Debug,Clone,Deserialize,PartialEq)]
@@ -253,5 +279,11 @@ mod test{
             let _res = reqwest::get(i.to_string()).await.unwrap().json::<VersionDetails>().await.unwrap();
             // println!("{:?}",_res)
         }
+    }
+
+    #[tokio::test]
+    async fn test_package_info(){
+        let url = "https://meta.prismlauncher.org/v1/";
+        let _res = reqwest::get(url).await.unwrap().json::<crate::utils::minecraft::metadata::PackageList>().await.unwrap();
     }
 }
