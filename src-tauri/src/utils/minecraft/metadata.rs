@@ -254,7 +254,7 @@ pub enum SHAType{
     SHA256(Vec<u8>)
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetadataSetting{
     api:String,
     cache_override:Option<PathBuf>,
