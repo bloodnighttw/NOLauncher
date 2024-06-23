@@ -1,10 +1,18 @@
 use std::collections::HashMap;
+use std::io::ErrorKind;
+use std::io::ErrorKind::NotFound;
+use std::num::ParseIntError;
+use std::path::PathBuf;
 use std::time::Duration;
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{Value};
-use crate::utils::data::TimeSensitiveTrait;
+use sha1::{Digest as d1,Sha1};
+use sha2::{Digest, Sha256};
+use thiserror::Error;
+use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
+use anyhow::Result;
 
-#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageList{
     pub format_version:i32,
@@ -18,7 +26,7 @@ impl TimeSensitiveTrait for PackageList{
     }
 }
 
-#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageInfo{
     name:String,
@@ -117,7 +125,7 @@ pub enum Action{
 }
 
 /// This function is used to deserialize the os field in Rule struct.
-fn os_processing<'de, D: Deserializer<'de>>(deserializer: D) -> anyhow::Result<Option<Platform>, D::Error> {
+fn os_processing<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Platform>, D::Error> {
 
     return Ok(match Value::deserialize(deserializer)?{
         Value::Object(map) => {
@@ -218,10 +226,230 @@ pub struct VersionDetails {
     pub minecraft_arguments:Option<String>,
 }
 
+/* the function to handle metadata */
+pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect()
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum MetadataFileError{
+    #[error("IO ERROR {0}")]
+    IO(ErrorKind),
+    #[error("the cached file is not found")]
+    Invalid,
+    #[error("the cached file is not found")]
+    Fetching,
+    #[error("Unknown error, details: {0}")]
+    Unknown(String)
+
+
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum SHAType{
+    SHA1(Vec<u8>),
+    SHA256(Vec<u8>)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct MetadataSetting{
+    api:String,
+    cache_override:Option<PathBuf>,
+    package_list: TimeSensitiveData<PackageList>
+}
+
+impl Default for MetadataSetting{
+    fn default() -> Self {
+        MetadataSetting{
+            api: "https://meta.prismlauncher.org/v1/".to_string(),
+            cache_override: None,
+            package_list: TimeSensitiveData::new(PackageList::default()),
+        }
+    }
+}
+
+impl MetadataSetting{
+
+    /// # How we handle cached file
+    /// First we will have [PackageList] in [Metadata], we will fetch data
+    /// from [api_path], which contain package info.
+    /// Then we will check [PackageDetails] is in [cached_path] folder and sha of [PackageDetails],
+    /// if not download or re-download it from [api_path].
+    /// [VersionDetails] is also work like this, so this is the function to handle it.
+     async fn get_cached_file_content(path:PathBuf, sha:SHAType) -> Result<String, MetadataFileError> {
+        let i = tokio::fs::read_to_string(path).await;
+
+        let content = match i {
+            Ok(content) => {content}
+            Err(e) =>{
+                return Err(MetadataFileError::IO(e.kind()))
+            }
+        };
+
+        match sha {
+            SHAType::SHA1(sha1) => {
+                assert_eq!(sha1.len(),20);
+                let mut hasher = Sha1::new();
+                sha1::digest::Update::update(&mut hasher, content.clone().as_bytes());
+                let result = &hasher.finalize()[..];
+                if sha1 != result{
+                    return Err(MetadataFileError::Invalid)
+                }
+            }
+            SHAType::SHA256(sha256) => {
+                assert_eq!(sha256.len(),32);
+                let mut hasher = Sha256::new();
+                hasher.update(content.clone().as_bytes());
+                let result = &hasher.finalize()[..];
+                if sha256 != result{
+                    return Err(MetadataFileError::Invalid)
+                }
+            }
+        }
+
+        Ok(content)
+     }
+
+     async fn fetch_and_store(file:PathBuf, url:&str) -> Result<(),MetadataFileError>{
+        let res = reqwest::get(url).await;
+        match res {
+            Ok(res) => {
+
+                if !res.status().is_success(){
+                    return Err(MetadataFileError::Fetching)
+                }
+                
+                let body = res.text().await.expect("this should be success!");
+                tokio::fs::write(file,body.into_bytes()).await.unwrap();
+                Ok(())
+            }
+            Err(e) => {
+                Err(MetadataFileError::Unknown(e.to_string()))
+            }
+        }
+    }
+    
+    async fn check_and_create_folder(path:PathBuf) -> Result<(),MetadataFileError>{
+        match tokio::fs::create_dir_all(path).await{
+            Ok(_) => {Ok(())}
+            Err(e) => {
+                Err(MetadataFileError::IO(e.kind()))
+            }
+        }
+    }
+
+    pub async fn get_package_details(&self,default:PathBuf,uid:&str,sha:SHAType) -> Result<PackageDetails,MetadataFileError>{
+        let cache_root = self.cache_override.clone().unwrap_or({
+            default
+        });
+        
+        let path = cache_root.join(uid);
+        let file = path.join("index.json");
+        let url = format!("{}/{}/index.json",self.api,uid);
+
+
+        Self::check_and_create_folder(path.clone()).await?;
+
+        loop{
+            let content = Self::get_cached_file_content(file.clone(),sha.clone()).await;
+            return match content {
+                Ok(str) => {
+                    Ok(serde_json::from_str(&str).unwrap())
+                }
+                Err(error) => {
+                    if let MetadataFileError::IO(e) = error {
+                        if let NotFound = e{
+                            let url = format!("{}/{}",self.api,uid);
+                            Self::fetch_and_store(file.clone(),&url).await?;
+                            continue;
+                        }
+                        return Err(MetadataFileError::IO(e))
+                    }
+
+                    if let MetadataFileError::Invalid = error{
+                        Self::fetch_and_store(file.clone(),&url).await?;
+                    }
+
+                    return Err(error)
+
+                }
+            }
+        }
+    }
+
+    pub async fn get_version_details(&self,default:PathBuf,uid:&str,version:&str,sha:SHAType) -> Result<VersionDetails,MetadataFileError>{
+        let cache_root = self.cache_override.clone().unwrap_or({
+            default
+        });
+
+        let path = cache_root.join(uid);
+        let file = path.join(format!("{}.json",version));
+        let url = format!("{}/{}/{}.json",self.api,uid,version);
+
+        Self::check_and_create_folder(path.clone()).await?;
+
+        loop{
+            let content = Self::get_cached_file_content(file.clone(),sha.clone()).await;
+            return match content {
+                Ok(str) => {
+                    Ok(serde_json::from_str(&str).unwrap())
+                }
+                Err(error) => {
+                    if let MetadataFileError::IO(e) = error {
+                        if let NotFound = e{    
+                            Self::fetch_and_store(file.clone(),&url).await?;
+                            continue;
+                        }
+                        return Err(MetadataFileError::IO(e))
+                    }
+
+                    if let MetadataFileError::Invalid = error{
+                        Self::fetch_and_store(file.clone(),&url).await?;
+                    }
+
+                    return Err(error)
+
+                }
+            }
+        }
+    }
+    
+    pub async fn refresh(&mut self) -> Result<(),MetadataFileError>{
+        
+        let res = reqwest::get(&self.api).await;
+        match res {
+            Ok(res) => {
+                let pkg = res.json::<PackageList>().await;
+                
+                match pkg {
+                    Ok(content) => {
+                        self.package_list = TimeSensitiveData::new(content);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        Err(MetadataFileError::Unknown(e.to_string()))
+                    }
+                }
+            }
+            Err(_) => {Err(MetadataFileError::Fetching)}
+        }
+    }
+
+}
+
+
+
+
 #[cfg(test)]
 mod test{
+    use std::{env, fs};
+    use std::io::ErrorKind;
     use serde_json::json;
-    use crate::utils::minecraft::metadata::{VersionDetails, PackageDetails, Rule};
+    use crate::utils::minecraft::metadata::{VersionDetails, PackageDetails, Rule, decode_hex, MetadataFileError, MetadataSetting};
+    use crate::utils::minecraft::metadata::SHAType::{SHA1, SHA256};
 
     #[tokio::test]
     async fn test_version_info(){
@@ -294,4 +522,83 @@ mod test{
         let url = "https://meta.prismlauncher.org/v1/";
         let _res = reqwest::get(url).await.unwrap().json::<crate::utils::minecraft::metadata::PackageList>().await.unwrap();
     }
+
+    #[tokio::test]
+    async fn test_metadata_get_cached_file_content_not_found(){
+        let path = env::current_dir().unwrap();
+
+        let test_sha1 = "a6b0f24b706870b0e0c1813f0805850a2a2988bf";
+        let decode_from_hex = decode_hex(test_sha1).unwrap();
+
+        let test = MetadataSetting::get_cached_file_content(path.join("not found"), SHA1(decode_from_hex)).await;
+        let data = Err(MetadataFileError::IO(ErrorKind::NotFound));
+        assert_eq!(test,data)
+    }
+
+    #[tokio::test]
+    async fn test_metadata_get_cached_file_content_sha1(){
+        let path = env::current_dir().unwrap();
+
+        let test_str = "it's is a str";
+        let test_sha1 = "a6b0f24b706870b0e0c1813f0805850a2a2988bf";
+
+        tokio::fs::write(path.join("test1.txt"),test_str.to_string()).await.unwrap();
+        let decode_from_hex = decode_hex(test_sha1).unwrap();
+        let _ = MetadataSetting::get_cached_file_content(path.join("test1.txt"), SHA1(decode_from_hex)).await.unwrap();
+
+        fs::remove_file(path.join("test1.txt")).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_metadata_get_cached_file_content_sha256(){
+        let path = env::current_dir().unwrap();
+
+
+        let test_str = "it's is a str";
+        let test_sha1 = "5541938b005426931bd062af5b23d0ed69ca5cf577ae80dc441e3d1d7f38c072";
+
+        tokio::fs::write(path.join("test2.txt"),test_str.to_string()).await.unwrap();
+        let decode_from_hex = decode_hex(test_sha1).unwrap();
+        let _ = MetadataSetting::get_cached_file_content(path.join("test2.txt"), SHA256(decode_from_hex)).await.unwrap();
+
+        fs::remove_file(path.join("test2.txt")).unwrap();
+    }
+
+    
+    #[tokio::test]
+    async fn fetch_package_details(){
+        let path = env::current_dir().unwrap();
+        let test_path = path.join("test");
+        let metadata = MetadataSetting::default();
+        let uid = "org.lwjgl";
+        let sha = SHA256(decode_hex("c0094ab29be4be93b7cf0e05067608814afb6c4f40223784ecb69e6635cd6bbf").unwrap());
+        
+        metadata.get_package_details(test_path.clone(),uid,sha).await.unwrap();
+        
+        // clean up
+        tokio::fs::remove_dir_all(test_path.clone()).await.unwrap();
+       
+    }
+
+    #[tokio::test]
+    async fn fetch_version_details(){
+        let path = env::current_dir().unwrap();
+        let test_path = path.join("test2");
+        let metadata = MetadataSetting::default();
+        let uid = "org.lwjgl";
+        let version = "2.9.1";
+        let sha = SHA256(decode_hex("be9e7ac96da952c9461d6f08e5a4e4e0ffcc2dafba291b48ed430269a9af0497").unwrap());
+
+        metadata.get_version_details(test_path.clone(),uid,version,sha).await.unwrap();
+
+        // clean up
+        tokio::fs::remove_dir_all(test_path.clone()).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn refresh_all(){
+        let mut metadata = MetadataSetting::default();
+        metadata.refresh().await.unwrap();
+    }
+    
 }
