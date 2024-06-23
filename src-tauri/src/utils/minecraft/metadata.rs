@@ -1,13 +1,21 @@
 use std::collections::HashMap;
+use std::time::Duration;
 use serde::{de, Deserialize, Deserializer};
 use serde_json::{Value};
+use crate::utils::data::TimeSensitiveTrait;
 
 #[derive(Debug,Clone,Deserialize,PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageList{
-    format_version:i32,
+    pub format_version:i32,
     #[serde(deserialize_with = "package_vec_to_map")]
-    packages:HashMap<String,PackageInfo>
+    pub packages:HashMap<String,PackageInfo>
+}
+
+impl TimeSensitiveTrait for PackageList{
+    fn get_duration(&self) -> Duration {
+        Duration::from_secs(3600) // 1 hour
+    }
 }
 
 #[derive(Debug,Clone,Deserialize,PartialEq)]
