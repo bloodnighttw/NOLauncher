@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeZone};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use std::time::Duration;
@@ -26,6 +26,13 @@ where
         Self {
             data,
             time: Local::now(),
+        }
+    }
+
+    pub fn new_invalid(data: T) -> Self {
+        Self {
+            data,
+            time: Local.with_ymd_and_hms(1970, 1, 1, 4, 51, 4).unwrap(),
         }
     }
 

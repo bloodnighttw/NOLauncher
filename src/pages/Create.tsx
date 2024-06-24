@@ -6,9 +6,8 @@ export function Create(){
     useEffect(() => {
         console.log("hi")
 
-        invoke("list_minecraft_version").then((res) => {
-            console.log()
-            console.log("hi"+res)
+        invoke<MinecraftVersionInfo>("list_versions").then((res) => {
+            console.log("hi"+res.quilt)
         })
 
     })

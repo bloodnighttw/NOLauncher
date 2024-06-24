@@ -30,7 +30,7 @@ impl TimeSensitiveTrait for PackageList{
 #[serde(rename_all = "camelCase")]
 pub struct PackageInfo{
     name:String,
-    sha256:String,
+    pub(crate) sha256:String,
     uid:String
 }
 
@@ -81,7 +81,7 @@ pub struct VersionInfo{
         default
     )]
     conflicts:Vec<DependencyPackage>,
-    version:String,
+    pub version:String,
     volatile: Option<bool>
 }
 
@@ -93,7 +93,7 @@ pub struct PackageDetails {
     format_version:i32,
     name:String,
     uid:String,
-    versions:Vec<VersionInfo>
+    pub(crate) versions:Vec<VersionInfo>
 }
 
 /// This enum list all supported platforms.
@@ -250,6 +250,8 @@ pub enum MetadataFileError{
     Invalid,
     #[error("the cached file is not found")]
     Fetching,
+    #[error("the cached file is not found")]
+    RetryTooManyTime,
     #[error("Unknown error, details: {0}")]
     Unknown(String)
 
@@ -266,7 +268,7 @@ pub enum SHAType{
 pub struct MetadataSetting{
     api:String,
     cache_override:Option<PathBuf>,
-    package_list: TimeSensitiveData<PackageList>
+    pub package_list: TimeSensitiveData<PackageList>
 }
 
 impl Default for MetadataSetting{
@@ -274,7 +276,7 @@ impl Default for MetadataSetting{
         MetadataSetting{
             api: "https://meta.prismlauncher.org/v1/".to_string(),
             cache_override: None,
-            package_list: TimeSensitiveData::new(PackageList::default()),
+            package_list: TimeSensitiveData::new_invalid(PackageList::default()),
         }
     }
 }
@@ -361,7 +363,13 @@ impl MetadataSetting{
 
         Self::check_and_create_folder(path.clone()).await?;
 
+        let mut count = 0;
+
         loop{
+            if count > 3{
+                return Err(MetadataFileError::RetryTooManyTime)
+            }
+            count+=1;
             let content = Self::get_cached_file_content(file.clone(),sha.clone()).await;
             return match content {
                 Ok(str) => {
@@ -398,8 +406,15 @@ impl MetadataSetting{
         let url = format!("{}/{}/{}.json",self.api,uid,version);
 
         Self::check_and_create_folder(path.clone()).await?;
+        let mut count = 0;
 
         loop{
+
+            if count > 3{
+                return Err(MetadataFileError::RetryTooManyTime)
+            }
+            count+=1;
+
             let content = Self::get_cached_file_content(file.clone(),sha.clone()).await;
             return match content {
                 Ok(str) => {
