@@ -87,9 +87,6 @@ fn main() {
 
                 match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
                     Ok(config) => {
-                        if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
-                            change_user(Some(id), handle).await;
-                        }
                         handle.manage(config);
                     }
                     Err(e) => {

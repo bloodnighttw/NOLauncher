@@ -16,7 +16,7 @@ use serde_json::Value;
 #[serde(rename_all = "camelCase")]
 pub struct PackageList{
     pub format_version:i32,
-    #[serde(deserialize_with = "package_vec_to_map")]
+    #[serde(deserialize_with = "package_vec_to_map" , serialize_with = "map_to_package_vec")]
     pub packages:HashMap<String,PackageInfo>
 }
 
@@ -41,6 +41,14 @@ fn package_vec_to_map<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Hash
         map.insert(i.uid.clone(),i);
     }
     Ok(map)
+}
+
+fn map_to_package_vec<S>(map: &HashMap<String,PackageInfo>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let vec: Vec<PackageInfo> = map.values().cloned().collect();
+    vec.serialize(serializer)
 }
 
 
