@@ -78,7 +78,7 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
             tauri::async_runtime::block_on(async move {
-                let res = read(&handle).await;
+                let res = read(handle).await;
                 if let Err(e) = res {
                     log::error!("Failed to load the usermap: {}", e);
                 }
@@ -88,7 +88,7 @@ fn main() {
                 match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
                     Ok(config) => {
                         if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
-                            change_user(Some(id), &handle).await;
+                            change_user(Some(id), handle).await;
                         }
                         handle.manage(config);
                     }

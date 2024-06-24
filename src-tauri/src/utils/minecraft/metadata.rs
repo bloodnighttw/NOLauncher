@@ -5,12 +5,12 @@ use std::num::ParseIntError;
 use std::path::PathBuf;
 use std::time::Duration;
 use serde::{de, Deserialize, Deserializer, Serialize};
-use serde_json::{Value};
 use sha1::{Digest as d1,Sha1};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
+use serde_json::Value;
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Default)]
 #[serde(rename_all = "camelCase")]
@@ -132,7 +132,7 @@ fn os_processing<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Pl
             if let Some(Value::String(osname)) = map.get("name"){
 
                 match osname.to_string().as_str(){
-                    "windows" => Some(Platform::Windows),
+                    "windows" => Some(Platform::Windows),   
                     "windows-arm64" => Some(Platform::WindowsArm64),
                     "linux" => Some(Platform::Linux),
                     "linux-arm32" => Some(Platform::LinuxArm32),
