@@ -58,14 +58,15 @@ async fn fetch_uid(
 #[tauri::command]
 pub async fn list_versions(config: State<'_, LauncherConfig>, app:AppHandle) -> Result<MinecraftInfoResponse, String> {
     let lock = config;
-    let mut config = lock.write().await;
-
     let mut not_up_to_date_flag = false;
 
-    if !&config.metadata_setting.package_list.is_vaild() {
-        let res = config.metadata_setting.refresh().await;
-        if res.is_err() {
-            not_up_to_date_flag = true;
+    {
+        let mut config = lock.write().await;
+        if !&config.metadata_setting.package_list.is_vaild() {
+            let res = config.metadata_setting.refresh().await;
+            if res.is_err() {
+                not_up_to_date_flag = true;
+            }
         }
     }
 
