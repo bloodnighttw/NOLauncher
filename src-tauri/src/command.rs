@@ -1,3 +1,3 @@
 pub(crate) mod login;
 pub mod user;
-mod instance;
+pub mod instance;

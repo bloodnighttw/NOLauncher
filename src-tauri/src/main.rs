@@ -6,13 +6,13 @@ use crate::command::login::{
     xbox_xsts_auth,
 };
 use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
-use crate::event::user::change_user;
 use crate::utils::config::NoLauncherConfig;
 use log::{LevelFilter, Log, Metadata, Record};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
+use crate::command::instance::list_versions;
 use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod command;
@@ -73,12 +73,13 @@ fn main() {
             get_users,
             get_current_user,
             set_current_user,
-            logout_user
+            logout_user,
+            list_versions
         ])
         .setup(|app| {
             let handle = app.handle();
             tauri::async_runtime::block_on(async move {
-                let res = read(&handle).await;
+                let res = read(handle).await;
                 if let Err(e) = res {
                     log::error!("Failed to load the usermap: {}", e);
                 }
@@ -87,9 +88,6 @@ fn main() {
 
                 match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
                     Ok(config) => {
-                        if let Some(id) = config.clone().read().await.activate_user_uuid.clone() {
-                            change_user(Some(id), &handle).await;
-                        }
                         handle.manage(config);
                     }
                     Err(e) => {

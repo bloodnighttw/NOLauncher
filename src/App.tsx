@@ -7,6 +7,8 @@ import {ModList} from "./pages/ModList.tsx";
 import {Settings} from "./pages/Settings.tsx";
 import {Login, UserProfile} from "./pages/Login.tsx";
 import {Auth} from "./pages/Auth.tsx";
+import React from "react";
+import {Create} from "./pages/Create.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
@@ -15,15 +17,8 @@ interface ContentProps {
 
 export function Content(props: ContentProps) {
     return (
-        <div className="flex flex-col h-screen w-full">
-            <div
-                data-tauri-drag-region={true}
-                className="h-8 bg-base-200 w-full flex flex-row sticky"
-            >
-            </div>
-            <div className="w-full h-full overflow-y-auto bg-base-200">
-                {props.children}
-            </div>
+        <div className="w-full h-screen overflow-y-auto bg-base-200">
+            {props.children}
         </div>
     );
 }
@@ -35,6 +30,7 @@ export default function App() {
             <Content>
                 <Routes>
                     <Route path="/" element={<Home/>}/>
+                    <Route path="/create" element={<Create/>}/>
                     <Route path="/server" element={<Server/>}/>
                     <Route path="/modlist" element={<ModList/>}/>
                     <Route path="/settings" element={<Settings/>}/>

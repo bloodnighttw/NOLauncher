@@ -1,3 +1,3 @@
 pub mod auth;
 mod instance;
-mod metadata;
+pub mod metadata;
