@@ -1,22 +1,18 @@
 import {useEffect, useState} from "react";
 
-function NewInstance(){
-    const [version, setVersion] = useState<string>("Minecraft")
+interface PlatformProps {
+    version: string
+}
+
+function Platform(platform: PlatformProps) {
+
     const [showRelease, setRelease] = useState(true);
     const [showSnapshot, setSnapshot] = useState(false);
     const [beta, setBeta] = useState(false);
     const [alpha, setAlpha] = useState(false);
     const [experiment, setExperiment] = useState(false);
 
-    const loader=[
-        "Minecraft",
-        "Fabric",
-        "NeoForge",
-        "Forge",
-        "Quilt"
-    ]
-
-    const typeFilter = (type:string|null) =>{
+    const typeFilter = (type: string | null) => {
 
         switch (type) {
             case "release":
@@ -35,19 +31,7 @@ function NewInstance(){
         return false
     }
 
-    const platform = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
-    const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
-
-    return <div className="py-1.5 w-full gap-2">
-        <div className="label">
-            <span className="label-text">Pick the platform you want to use:</span>
-        </div>
-        <div role="tablist" className="tabs bg-base-100 rounded-md p-0.5">
-            {loader.map((name) => {
-                return <div role="tab" className={version == name ? platformActive : platform}
-                            onClick={() => setVersion(name)}>{name}</div>
-            })}
-        </div>
+    return <div>
         <div className="label">
             <span className="label-text">Select Minecraft Version</span>
         </div>
@@ -109,9 +93,9 @@ function NewInstance(){
             <option value="minecraft">neoforge</option>
         </select>
         {
-            version != "Minecraft" ? <div className="duration-200">
+            platform.version != "Minecraft" ? <div className="duration-200">
                 <div className="label">
-                    <span className="label-text">Select {version} Version</span>
+                    <span className="label-text">Select {platform.version} Version</span>
                 </div>
 
                 <select className="select select-bordered w-full select-sm">
@@ -121,13 +105,44 @@ function NewInstance(){
                     <option value="minecraft">forge</option>
                     <option value="minecraft">neoforge</option>
                 </select>
-            </div>: null
+            </div> : null
         }
 
 
         <div className="flex justify-end label">
             <button className="btn btn-sm bg-base-100">Create!</button>
         </div>
+    </div>
+}
+
+function NewInstance() {
+    const [version, setVersion] = useState<string>("Minecraft")
+
+
+    const loader = [
+        "Minecraft",
+        "Fabric",
+        "NeoForge",
+        "Forge",
+        "Quilt"
+    ]
+
+    const platform = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
+    const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
+
+    return <div className="py-1.5 w-full gap-2">
+        <div className="label">
+            <span className="label-text">Pick the platform you want to use:</span>
+        </div>
+        <div role="tablist" className="tabs bg-base-100 rounded-md p-0.5">
+            {loader.map((name) => {
+                return <div role="tab" className={version == name ? platformActive : platform}
+                            onClick={() => setVersion(name)}>{name}</div>
+            })}
+        </div>
+
+        <Platform version={version}/>
+
 
     </div>
 }
