@@ -1,6 +1,7 @@
 interface SimpleInfo {
     version: string;
     rtype: string | null;
+    dep: string | null;
 }
 
 interface MinecraftVersionInfo{

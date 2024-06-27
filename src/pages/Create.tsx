@@ -1,16 +1,24 @@
 import {useEffect, useState} from "react";
+import {invoke} from "@tauri-apps/api/core";
 
-interface PlatformProps {
-    version: string
-}
-
-function Platform(platform: PlatformProps) {
+function NewInstance() {
+    const [platform, setPlatform] = useState<string>("Minecraft")
+    const [versionInfo,setVersionInfo] = useState<MinecraftVersionInfo|null>(null);
 
     const [showRelease, setRelease] = useState(true);
     const [showSnapshot, setSnapshot] = useState(false);
-    const [beta, setBeta] = useState(false);
-    const [alpha, setAlpha] = useState(false);
-    const [experiment, setExperiment] = useState(false);
+    const [showBeta, setBeta] = useState(false);
+    const [showAlpha, setAlpha] = useState(false);
+    const [showExperiment, setExperiment] = useState(false);
+
+    const [cacheIntermediary,setCacheIntermediary] = useState<Set<string | null>>(new Set())
+    const [cacheForge,setCacheForge] = useState<Set<string | null>>(new Set())  // dep to version
+    const [cacheLite,setCacheLite] = useState<Set<string | null>>(new Set())  // dep to version
+    const [cacheNeoForge,setCacheNeoForge] = useState<Set<string | null>>(new Set()) // dep to version
+
+    const [selectedVersion,setSelectedVersion] = useState<string>("unselected");
+
+
 
     const typeFilter = (type: string | null) => {
 
@@ -21,19 +29,88 @@ function Platform(platform: PlatformProps) {
             case "snapshot":
                 return showSnapshot;
             case "old_beta":
-                return beta;
+                return showBeta;
             case "old_alpha":
-                return alpha;
+                return showAlpha;
             case "experiment":
-                return experiment;
+                return showExperiment;
         }
 
         return false
     }
 
-    return <div>
+    const modFilter = (version: string | null) => {
+
+        switch (platform) {
+            case "Quilt":
+            case "Fabric":
+                return cacheIntermediary.has(version);
+            case "Forge":
+                return cacheForge.has(version);
+            case "NeoForge":
+                return cacheNeoForge.has(version);
+            case "liteloader":
+                return cacheLite.has(version);
+            default:
+                return true;
+        }
+    }
+
+    const modVersion = (version: string) => {
+        switch (version){
+            case "Quilt":
+                return versionInfo?.quilt
+            case "Fabric":
+                return versionInfo?.fabric_loader
+            case "Forge":
+                return versionInfo?.forge
+            case "NeoForge":
+                return versionInfo?.neoforge
+            case "liteloader":
+                return versionInfo?.liteloader
+            default:
+                return null
+        }
+    }
+
+    useEffect(()=>{
+        invoke<MinecraftVersionInfo>("list_versions").then((res)=>{
+            setVersionInfo(res)
+            setCacheIntermediary(new Set(res.intermediary.map((v)=> v.dep)))
+            setCacheForge(new Set(res.forge.map((v)=> v.dep)))
+            setCacheLite(new Set(res.liteloader.map((v)=> v.dep)))
+            setCacheNeoForge(new Set(res.neoforge.map((v)=> v.dep)))
+        }).catch(console.error)
+    },[setVersionInfo,setCacheIntermediary,setCacheForge,setCacheLite,setCacheNeoForge])
+
+    const loader = [
+        "Minecraft",
+        "Fabric",
+        "NeoForge",
+        "Forge",
+        "Quilt",
+        "liteloader",
+    ]
+
+    const platformUnactive = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
+    const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
+
+    return <div className="py-1.5 w-full gap-2">
         <div className="label">
-            <span className="label-text">Select Minecraft Version</span>
+            <span className="label-text">Pick the platform you want to use:</span>
+        </div>
+        <div role="tablist" className="tabs bg-base-100 rounded-md p-0.5">
+            {loader.map((name) => {
+                return <div role="tab" className={platform == name ? platformActive : platformUnactive}
+                            onClick={() => {
+                                setSelectedVersion("unselected")
+                                setPlatform(name)
+                            }}>{name}</div>
+            })}
+        </div>
+
+        <div className="label">
+            <span className="label-text">Minecraft Version Filter</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -85,25 +162,33 @@ function Platform(platform: PlatformProps) {
             <span className="label-text">Select Minecraft Version</span>
         </div>
 
-        <select className="select select-bordered w-full select-sm">
-            <option disabled selected>Selected Version</option>
-            <option value="minecraft">minecraft</option>
-            <option value="minecraft">fabric</option>
-            <option value="minecraft">forge</option>
-            <option value="minecraft">neoforge</option>
+        <select className="select select-bordered w-full select-sm"
+                value={selectedVersion}
+                onChange={(e) => {
+                    setSelectedVersion(e.target.value)
+                }}
+        >
+            <option disabled selected value="unselected">Selected Version</option>
+            {versionInfo?.minecraft
+                .filter((v) => typeFilter(v.rtype) && modFilter(v.version))
+                .map((v) => {
+                    return <option value={v.version}>{v.version}</option>
+                })}
         </select>
         {
-            platform.version != "Minecraft" ? <div className="duration-200">
+            platform != "Minecraft" ? <div className="duration-200">
                 <div className="label">
-                    <span className="label-text">Select {platform.version} Version</span>
+                    <span className="label-text">Select {platform} Version</span>
                 </div>
 
-                <select className="select select-bordered w-full select-sm">
-                    <option disabled selected>Selected Version</option>
-                    <option value="minecraft">minecraft</option>
-                    <option value="minecraft">fabric</option>
-                    <option value="minecraft">forge</option>
-                    <option value="minecraft">neoforge</option>
+                <select className="select select-bordered w-full select-sm" disabled={selectedVersion == "unselected"}>
+                    { selectedVersion == "unselected" ? <option disabled selected>Please Select Minecraft Version First</option> : null}
+                    {modVersion(platform)?.filter((v) => {
+                        if (v.dep == null) return true
+                        return v.dep === selectedVersion
+                    }).map((v) => {
+                        return <option value={v.version}>{v.version}</option>
+                    })}
                 </select>
             </div> : null
         }
@@ -112,36 +197,6 @@ function Platform(platform: PlatformProps) {
         <div className="flex justify-end label">
             <button className="btn btn-sm bg-base-100">Create!</button>
         </div>
-    </div>
-}
-
-function NewInstance() {
-    const [version, setVersion] = useState<string>("Minecraft")
-
-
-    const loader = [
-        "Minecraft",
-        "Fabric",
-        "NeoForge",
-        "Forge",
-        "Quilt"
-    ]
-
-    const platform = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
-    const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
-
-    return <div className="py-1.5 w-full gap-2">
-        <div className="label">
-            <span className="label-text">Pick the platform you want to use:</span>
-        </div>
-        <div role="tablist" className="tabs bg-base-100 rounded-md p-0.5">
-            {loader.map((name) => {
-                return <div role="tab" className={version == name ? platformActive : platform}
-                            onClick={() => setVersion(name)}>{name}</div>
-            })}
-        </div>
-
-        <Platform version={version}/>
 
 
     </div>
@@ -178,10 +233,6 @@ export function Create() {
 
                     <select disabled className="select select-bordered w-full select-sm w-full h-full ">
                         <option disabled selected>Tag is Coming soon......</option>
-                        <option value="minecraft">minecraft</option>
-                        <option value="minecraft">fabric</option>
-                        <option value="minecraft">forge</option>
-                        <option value="minecraft">neoforge</option>
                     </select>
                 </div>
 

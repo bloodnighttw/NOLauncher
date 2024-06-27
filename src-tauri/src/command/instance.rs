@@ -18,6 +18,7 @@ const QUILT_UID:&str = "org.quiltmc.quilt-loader";
 pub struct SimpleInfo{
     version:String,
     rtype:Option<String>,
+    dep:Option<String>
 }
 
 #[derive(Debug,Serialize)]
@@ -42,13 +43,22 @@ async fn fetch_uid(
         Vec::default()
     }else{
         let sha256 = SHA256(decode_hex(&package.unwrap().sha256).unwrap());
-
-
+        
         let version_list = &config.metadata_setting.get_package_details(default_path.clone(), uid, sha256).await.unwrap().versions;
         let vec:Vec<SimpleInfo> = version_list.iter()
-            .map(|x| SimpleInfo{
-                version:x.version.clone(),
-                rtype:x.rtype.clone()
+            .map(|x| -> SimpleInfo {
+                let i = x.requires.clone();
+                let dep = match i.first() {
+                    None => { None }
+                    Some(info) => {
+                        info.equals.clone()
+                    }
+                };
+                SimpleInfo{
+                    version:x.version.clone(),
+                    rtype:x.rtype.clone(),
+                    dep
+                }
             })
             .collect();
         vec
