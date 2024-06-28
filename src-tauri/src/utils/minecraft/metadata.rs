@@ -53,7 +53,7 @@ where
 
 
 /// This struct is used to store the required or conflict package information.
-#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,Serialize,PartialEq)]
 pub struct DependencyPackage {
     pub suggests:Option<String>,
     pub equals:Option<String>,

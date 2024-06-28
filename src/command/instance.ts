@@ -14,3 +14,10 @@ interface MinecraftVersionInfo{
      neoforge:Array<SimpleInfo>,
      quilt:Array<SimpleInfo>
 }
+
+interface InstanceCreateRequest {
+    name:string, // instance name
+    ptype: string, // platform
+    version:string, // minecraft version
+    mod_version:string | null // mod loader version, vanilla is None
+}

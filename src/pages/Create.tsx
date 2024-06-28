@@ -1,7 +1,12 @@
 import {useEffect, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
+import {useNavigate} from "react-router-dom";
 
-function NewInstance() {
+interface Props{
+    name:string
+}
+
+function NewInstance(props:Props) {
     const [platform, setPlatform] = useState<string>("Minecraft")
     const [versionInfo,setVersionInfo] = useState<MinecraftVersionInfo|null>(null);
 
@@ -17,7 +22,9 @@ function NewInstance() {
     const [cacheNeoForge,setCacheNeoForge] = useState<Set<string | null>>(new Set()) // dep to version
 
     const [selectedVersion,setSelectedVersion] = useState<string>("unselected");
+    const [selectedMod,setSelectedMod] = useState<string>("unselected");
 
+    const navigate = useNavigate();
 
 
     const typeFilter = (type: string | null) => {
@@ -49,7 +56,7 @@ function NewInstance() {
                 return cacheForge.has(version);
             case "NeoForge":
                 return cacheNeoForge.has(version);
-            case "liteloader":
+            case "Liteloader":
                 return cacheLite.has(version);
             default:
                 return true;
@@ -66,12 +73,14 @@ function NewInstance() {
                 return versionInfo?.forge
             case "NeoForge":
                 return versionInfo?.neoforge
-            case "liteloader":
+            case "Liteloader":
                 return versionInfo?.liteloader
             default:
                 return null
         }
     }
+
+    const dataValid = () => selectedVersion != "unselected" && (platform == "Minecraft" ||  selectedMod != "unselected") && props.name != ""
 
     useEffect(()=>{
         invoke<MinecraftVersionInfo>("list_versions").then((res)=>{
@@ -89,7 +98,7 @@ function NewInstance() {
         "NeoForge",
         "Forge",
         "Quilt",
-        "liteloader",
+        "Liteloader",
     ]
 
     const platformUnactive = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
@@ -104,6 +113,7 @@ function NewInstance() {
                 return <div role="tab" className={platform == name ? platformActive : platformUnactive}
                             onClick={() => {
                                 setSelectedVersion("unselected")
+                                setSelectedMod("unselected")
                                 setPlatform(name)
                             }}>{name}</div>
             })}
@@ -181,8 +191,17 @@ function NewInstance() {
                     <span className="label-text">Select {platform} Version</span>
                 </div>
 
-                <select className="select select-bordered w-full select-sm" disabled={selectedVersion == "unselected"}>
-                    { selectedVersion == "unselected" ? <option disabled selected>Please Select Minecraft Version First</option> : null}
+                <select className="select select-bordered w-full select-sm"
+                        disabled={selectedVersion == "unselected"}
+                        value={selectedMod}
+                        onChange={(e) => {
+                            setSelectedMod(e.target.value)
+                        }}
+                >
+                    <option value="unselected" disabled>Select version to continue</option>
+
+                    {selectedVersion == "unselected" ?
+                        <option disabled selected>Please Select Minecraft Version First</option> : null}
                     {modVersion(platform)?.filter((v) => {
                         if (v.dep == null) return true
                         return v.dep === selectedVersion
@@ -195,7 +214,19 @@ function NewInstance() {
 
 
         <div className="flex justify-end label">
-            <button className="btn btn-sm bg-base-100">Create!</button>
+            <button className="btn btn-sm bg-base-100 duration-400"
+                    disabled={!dataValid()}
+                    onClick={() => {
+                        invoke("create_instance", {
+                            request:{
+                                name: props.name,
+                                ptype: platform,
+                                version: selectedVersion,
+                                mod_version: selectedMod
+                            }
+                        }).then(()=>navigate("/")).catch(console.error)
+                    }}
+            >Create!</button>
         </div>
 
 
@@ -205,12 +236,13 @@ function NewInstance() {
 export function Create() {
 
     const [tabIndex, setTabIndex] = useState(0)
+    const [name,setName] = useState<string>("")
 
 
     const tab = "tab duration-200";
     const tabActive = "tab tab-active duration-200";
     const tabs = [
-        {long_name: "Create", component: <NewInstance/>},
+        {long_name: "Create", component: <NewInstance name={name}/>},
         {long_name: "Import", component: null},
     ];
 
@@ -229,7 +261,11 @@ export function Create() {
                 </div>
                 <div className="flex flex-col gap-2 w-full h-20">
                     <input type="text" placeholder="Type Instance Name Here "
-                           className="input input-xs input-bordered w-full h-full"/>
+                           className="input input-xs input-bordered w-full h-full"
+                           onChange={(e) => {
+                               setName(e.target.value);
+                           }}
+                    />
 
                     <select disabled className="select select-bordered w-full select-sm w-full h-full ">
                         <option disabled selected>Tag is Coming soon......</option>

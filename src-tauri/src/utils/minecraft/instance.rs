@@ -1,15 +1,12 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize,Deserialize,Debug)]
-struct InstanceConfig{
-    #[serde(default = "Default::default")]
-    name: String
-}
-
-impl Default for InstanceConfig{
-    fn default() -> Self {
-        InstanceConfig{
-            name:"Instance Name".to_string(),
-        }
-    }
+#[derive(Serialize,Deserialize,Debug,Default)]
+pub struct InstanceConfig{
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub dep: HashMap<String,String>, // key: uid, value: version,
+    #[serde(default)]
+    pub top: String // top dep uid
 }
