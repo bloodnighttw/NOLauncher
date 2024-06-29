@@ -58,14 +58,7 @@ pub trait Save<T:Serialize = Self>{
     fn save(&self,path:&Path) -> Result<()>;
 }
 
-
 pub trait Load<'a, T:Deserialize<'a> = Self>{
     fn load(path:&Path) -> Result<Box<Self>>;
 }
-
-#[derive(Debug,Save,Serialize,Deserialize,Load)]
-struct Test{
-    string: String
-}
-
 
