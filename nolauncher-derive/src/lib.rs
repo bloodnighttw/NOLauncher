@@ -56,7 +56,7 @@ fn impl_config(ast:DeriveInput) -> TokenStream{
     let ident = ast.ident;
     let attr = ast.attrs.iter().filter(
         |x| x.path().segments.len() == 1 && x.path().segments[0].ident == "save_path"
-    ).nth(0).expect("required #[config_path(SavePath)] (SavePath is Enum) to use this derive!");
+    ).nth(0).expect("required #[save_path(SavePath)] (SavePath is Enum) to use this derive!");
     
     let attr = match &attr.meta {
         Meta::List(a) => a.tokens.clone(), 
