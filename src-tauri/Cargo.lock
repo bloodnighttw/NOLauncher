@@ -2404,6 +2404,7 @@ dependencies = [
  "tauri-plugin-shell",
  "thiserror",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

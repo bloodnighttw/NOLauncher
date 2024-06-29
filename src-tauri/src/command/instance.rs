@@ -5,6 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
+use uuid::uuid;
 use crate::utils::config::{LauncherConfig, NoLauncherConfig};
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
@@ -233,10 +234,11 @@ pub async fn create_instance(
 
     let uuid:String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(6)
+        .take(12)
         .collect(); // random 6 id
     
     let instance_config = InstanceConfig{
+        id:uuid.clone(),
         name:request.name.clone(),
         dep,
         top:uid
@@ -244,7 +246,6 @@ pub async fn create_instance(
 
     let instance_root = app.path().app_data_dir().unwrap();
     let instance_path = instance_root.join(uuid);
-    println!("{:?}", instance_path);
     tokio::fs::create_dir_all(&instance_path).await.unwrap();
     let instance_config_path = instance_path.join("instance.json");
     tokio::fs::write(instance_config_path, serde_json::to_string(&instance_config).unwrap()).await.unwrap();
@@ -254,7 +255,7 @@ pub async fn create_instance(
         config.instances.push(instance_path);
         config.save(&app).await.expect("This should be success");
     }
-    
+
     Ok(String::default())
 }
 

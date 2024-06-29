@@ -10,6 +10,8 @@ use anyhow::Result;
 #[derive(Serialize,Deserialize,Debug,Default)]
 pub struct InstanceConfig{
     #[serde(default)]
+    pub id:String,
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub dep: HashMap<String,String>, // key: uid, value: version,
@@ -333,6 +335,7 @@ mod test{
         ];
         
         let instance = InstanceConfig{
+            id: "123456".to_string(),
             name: "hello".to_string(),
             dep: vec2hashmap(valid_vec),
             top: "net.fabricmc.fabric-loader".to_string(),
