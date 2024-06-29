@@ -28,6 +28,7 @@ sha1 = "0.11.0-pre.3"
 async-recursion = "1.1.1"
 rand = "0.7.3"
 uuid = { version = "1.8.0", features = ["v4"] }
+nolauncher-derive = {path = "../nolauncher-derive"}
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
