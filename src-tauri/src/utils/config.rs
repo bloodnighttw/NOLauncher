@@ -20,11 +20,11 @@ pub struct NoLauncherConfig {
 
 pub type LauncherConfig = Arc<RwLock<NoLauncherConfig>>;
 
-pub trait Save<T:Serialize = Self>{
+pub trait Save: Serialize{
     fn save(&self,path:&Path) -> Result<()>;
 }
 
-pub trait Load<'a, T:Deserialize<'a> = Self>{
+pub trait Load<'a> : Deserialize<'a>{
     fn load(path:&Path) -> Result<Box<Self>>;
 }
 
