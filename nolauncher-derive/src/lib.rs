@@ -10,10 +10,11 @@ fn impl_save(ast:DeriveInput) -> TokenStream{
     let ident = ast.ident;
     
     let token = quote::quote! {
-        impl Save for #ident{
-            fn save(&self,path:&Path) -> Result<()> {
+        
+        impl crate::utils::config::Save for #ident{
+            fn save(&self,path:&std::path::Path) -> anyhow::Result<()> {
                 let content = serde_json::to_string(self).unwrap();
-                fs::write(path,content)?;
+                std::fs::write(path,content)?;
                 Ok(())
             }
         }
@@ -32,9 +33,10 @@ pub fn a(input:TokenStream) -> TokenStream{
 fn impl_load(ast:DeriveInput) -> TokenStream{
     let ident = ast.ident;
     let token = quote::quote! {
-        impl Load<'_> for #ident{
-            fn load(path: &Path) -> Result<Box<Self>> {
-                let content = fs::read_to_string(path)?;
+        
+        impl crate::utils::config::Load<'_> for #ident{
+            fn load(path: &std::path::Path) -> anyhow::Result<Box<Self>> {
+                let content = std::fs::read_to_string(path)?;
                 let config = serde_json::from_str::<Self>(&content)?;
                 
                 Ok(Box::new(config))
@@ -47,6 +49,5 @@ fn impl_load(ast:DeriveInput) -> TokenStream{
 #[proc_macro_derive(Load)]
 pub fn b(input:TokenStream) -> TokenStream{
     let ast = syn::parse(input).unwrap();
-
     impl_load(ast)
 }
