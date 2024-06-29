@@ -5,10 +5,12 @@ use tokio::sync::RwLock;
 use crate::utils::minecraft::metadata::MetadataSetting;
 use anyhow::Result;
 use tauri::{AppHandle, Manager};
-use nolauncher_derive::{Load, Save};
+use nolauncher_derive::{Storage, Load, Save};
+use crate::constant::NOLAUNCHER_CONFIG_FILE;
 
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default, Save, Load)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default, Save, Load, Storage)]
+#[save_path(NOLAUNCHER_CONFIG_FILE)]
 pub struct NoLauncherConfig {
     #[serde(default)]
     pub activate_user_uuid: Option<String>,
@@ -69,4 +71,10 @@ impl SavePath {
             }
         }
     }
+}
+
+
+pub trait Storage<'a>: Save + Load<'a> {
+    fn save_by_app(&self, app:&AppHandle) -> Result<()>;
+    fn load_by_app(app:&AppHandle) -> Result<()>;
 }
