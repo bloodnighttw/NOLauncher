@@ -1,4 +1,3 @@
-use std::fs;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -6,7 +5,6 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::RwLock;
 use crate::utils::minecraft::metadata::MetadataSetting;
 use anyhow::Result;
-use nolauncher_derive::{Load, Save};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct NoLauncherConfig {
