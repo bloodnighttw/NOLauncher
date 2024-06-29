@@ -234,7 +234,7 @@ pub async fn create_instance(
     let uuid:String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(6)
-        .collect();
+        .collect(); // random 6 id
     
     let instance_config = InstanceConfig{
         name:request.name.clone(),
@@ -246,8 +246,15 @@ pub async fn create_instance(
     let instance_path = instance_root.join(uuid);
     println!("{:?}", instance_path);
     tokio::fs::create_dir_all(&instance_path).await.unwrap();
-    tokio::fs::write(instance_path.join("instance.json"), serde_json::to_string(&instance_config).unwrap()).await.unwrap();
+    let instance_config_path = instance_path.join("instance.json");
+    tokio::fs::write(instance_config_path, serde_json::to_string(&instance_config).unwrap()).await.unwrap();
 
+    {
+        let mut config = config.write().await;
+        config.instances.push(instance_path);
+        config.save(&app).await.expect("This should be success");
+    }
+    
     Ok(String::default())
 }
 

@@ -10,7 +10,9 @@ pub struct NoLauncherConfig {
     #[serde(default)]
     pub activate_user_uuid: Option<String>,
     #[serde(default)]
-    pub metadata_setting: MetadataSetting
+    pub metadata_setting: MetadataSetting,
+    #[serde(default)]
+    pub instances:Vec<PathBuf>
 }
 
 pub type LauncherConfig = Arc<RwLock<NoLauncherConfig>>;
