@@ -114,6 +114,63 @@ pub enum Platform{
     Unknown
 }
 
+
+/// to check if you are on argument platform.
+///
+/// # Arguments
+///
+/// * `platform`: the platform you want to check, always return true when None pass to it.
+///
+/// returns: bool
+///
+/// # Examples
+///
+/// ```
+///
+/// ```
+pub fn equal_my_platform(platform:&Option<Platform>) -> bool{
+
+    if let Some(platform) = platform{
+        match platform {
+            Platform::Windows => {
+                cfg!(target_arch = "x86") || cfg!(target_arch = "x86_64") && cfg!(target_os = "windows")
+            }
+            Platform::WindowsArm64 => {
+                cfg!(target_arch = "aarch64") && cfg!(target_os = "windows")
+            }
+            Platform::Linux => {
+                cfg!(target_arch = "x86") || cfg!(target_arch = "x86_64") && cfg!(target_os = "linux")
+            }
+            Platform::LinuxArm32 => {
+                cfg!(target_arch = "arm") && cfg!(target_os = "linux")
+            }
+            Platform::LinuxArm64 => {
+                cfg!(target_arch = "aarch64") && cfg!(target_os = "linux")
+            }
+            Platform::MacOsArm64 => {
+                cfg!(target_arch = "aarch64") && cfg!(target_os = "macos")
+            }
+            Platform::Unknown => {
+                false // we don't support x86 macos
+            }
+        }
+    } else {
+        true
+    }
+}
+
+pub fn string2platform(classifier:&str) -> Platform{
+    match classifier {
+        "natives-linux" => Platform::Linux,
+        "natives-windows" => Platform::Windows,
+        "natives-linux-arm32" => Platform::LinuxArm32,
+        "natives-linux-arm64" => Platform::LinuxArm64,
+        "natives-osx-arm64" => Platform::MacOsArm64,
+        _ => Platform::Unknown // we don't support x86 macos
+    }
+
+}
+
 /// This struct is used to store the rule of a library, which contain the information about
 /// the package is need to install on the specific platform or not.
 #[derive(Debug,Clone,Deserialize,PartialEq)]
@@ -170,13 +227,13 @@ pub struct Artifact{
 /// is used to store some platform-specific libraries.
 #[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct Download{
-    artifact:Option<Artifact>,
+    pub artifact:Option<Artifact>,
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-    classifiers:HashMap<String,Artifact>,
+    pub classifiers:HashMap<String,Artifact>,
 }
 
 /// This struct is used to store the extract information of a library.
-#[derive(Debug,Clone,Deserialize,PartialEq)]
+#[derive(Debug,Clone,Deserialize,PartialEq,Hash,Eq)]
 pub struct Extract{
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     exclude:Vec<String>
@@ -185,13 +242,48 @@ pub struct Extract{
 /// This struct is used to store the common library information.
 #[derive(Debug,Clone,Deserialize,PartialEq)]
 pub struct CommonLibrary {
-    name:String,
-    downloads:Download,
+    pub name:String,
+    pub downloads:Download,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    rules:Vec<Rule>,
-    extract:Option<Extract>,
+    pub rules:Vec<Rule>,
+    pub extract:Option<Extract>,
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-    natives:HashMap<String,String>
+    pub natives:HashMap<String,String>
+}
+
+/// To know your platform can use this package or not!
+///
+/// # Arguments
+///
+/// * `rules`: the rules vec
+///
+/// returns: bool
+///
+/// # Examples
+///
+/// ```
+/// let test_case = vec![Rule{
+///     action: Action::Allow,
+///     os: None,
+/// }];
+/// let test_result = rules_analyzer(test_case);
+/// assert!(test_result);
+///
+/// ```
+pub fn rules_analyzer(rules:Vec<Rule>) -> bool{
+
+    let mut allow = rules.is_empty(); // if empty all allow, if not disallow.
+
+    for rule in rules.iter(){
+        if equal_my_platform(&rule.os){
+            if rule.action == Action::Disallow {
+                return false; // your platform is not allow
+            }else{
+                allow = true // a
+            }
+        }
+    }
+    allow
 }
 
 /// This struct is used to store the maven-based library information.
@@ -222,6 +314,8 @@ pub struct VersionDetails {
     pub requires:Vec<DependencyPackage>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub libraries:Vec<Library>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub maven_files:Vec<Library>, // for forge and neoforge 
     pub name:String,
     pub uid:String,
     pub release_time:String,
@@ -254,8 +348,6 @@ pub enum MetadataFileError{
     RetryTooManyTime,
     #[error("Unknown error, details: {0}")]
     Unknown(String)
-
-
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -471,7 +563,7 @@ mod test{
     use std::{env, fs};
     use std::io::ErrorKind;
     use serde_json::json;
-    use crate::utils::minecraft::metadata::{VersionDetails, PackageDetails, Rule, decode_hex, MetadataFileError, MetadataSetting};
+    use crate::utils::minecraft::metadata::{VersionDetails, PackageDetails, Rule, decode_hex, MetadataFileError, MetadataSetting, Action, rules_analyzer, Platform};
     use crate::utils::minecraft::metadata::SHAType::{SHA1, SHA256};
 
     #[tokio::test]
@@ -622,6 +714,44 @@ mod test{
     async fn refresh_all(){
         let mut metadata = MetadataSetting::default();
         metadata.refresh().await.unwrap();
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rule_test(){
+        let test_case = vec![Rule{
+                action: Action::Allow,
+                os: None,
+            }];
+        let test_result = rules_analyzer(test_case);
+        assert!(test_result);
+
+        let test_case = vec![
+            Rule{
+                action: Action::Allow,
+                os: None,
+            },
+            Rule{
+                action: Action::Disallow,
+                os:Some(Platform::Linux)
+            }
+        ];
+        let test_result = rules_analyzer(test_case);
+        assert!(!test_result);
+
+        let test_case = vec![
+            Rule{
+                action: Action::Disallow,
+                os: Some(Platform::MacOsArm64),
+            },
+            Rule{
+                action: Action::Allow,
+                os:Some(Platform::Linux)
+            }
+        ];
+        let test_result = rules_analyzer(test_case);
+        assert!(test_result);
     }
     
 }
