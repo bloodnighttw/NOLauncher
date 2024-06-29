@@ -6,18 +6,20 @@ use crate::command::login::{
     xbox_xsts_auth,
 };
 use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
-use crate::utils::config::NoLauncherConfig;
+use crate::utils::config::{Load, NoLauncherConfig};
 use log::{LevelFilter, Log, Metadata, Record};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 use crate::command::instance::{create_instance, list_versions};
+use crate::constant::NOLAUNCHER_CONFIG_FILE;
 use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
 
 mod command;
 mod event;
 mod utils;
+mod constant;
 
 struct Logger;
 
@@ -87,9 +89,10 @@ fn main() {
 
                 let config_path = handle.path().app_config_dir().unwrap();
 
-                match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
+                match NoLauncherConfig::load(&NOLAUNCHER_CONFIG_FILE.to_path(&handle).unwrap()) {
                     Ok(config) => {
-                        handle.manage(config);
+                        let data = Arc::new(RwLock::new(*config));
+                        handle.manage(data);
                     }
                     Err(e) => {
                         log::error!("Failed to load the config,: {}", e);

@@ -5,8 +5,8 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use uuid::uuid;
-use crate::utils::config::{LauncherConfig, NoLauncherConfig};
+use crate::constant::NOLAUNCHER_CONFIG_FILE;
+use crate::utils::config::{LauncherConfig, NoLauncherConfig, Save};
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
@@ -253,7 +253,7 @@ pub async fn create_instance(
     {
         let mut config = config.write().await;
         config.instances.push(instance_path);
-        config.save(&app).await.expect("This should be success");
+        config.save(&NOLAUNCHER_CONFIG_FILE.to_path(&app).unwrap()).unwrap();
     }
 
     Ok(String::default())
