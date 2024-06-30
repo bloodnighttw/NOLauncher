@@ -5,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use crate::utils::config::{Storage, LauncherConfig, NoLauncherConfig, Save, SavePath};
+use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath};
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
@@ -72,7 +72,7 @@ async fn fetch_uid(
 }
 
 #[tauri::command]
-pub async fn list_versions(config: State<'_, LauncherConfig>, app:AppHandle) -> Result<MinecraftInfoResponse, String> {
+pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandle) -> Result<MinecraftInfoResponse, String> {
     let lock = config;
     let mut not_up_to_date_flag = false;
 
@@ -216,7 +216,7 @@ async fn handle_dep(uid:&str, mc_version:&str, p_version:Option<String>, config:
 #[tauri::command]
 pub async fn create_instance(
     request:InstanceCreateRequest,
-    config:State<'_, LauncherConfig>,
+    config:State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
 ) -> Result<String,String> {
 

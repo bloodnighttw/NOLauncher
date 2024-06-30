@@ -5,7 +5,6 @@ use reqwest::Client;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -530,5 +529,5 @@ impl AccountList {
     
 }
 
-pub type SafeAccountList = Arc<RwLock<AccountList>>;
+pub type SafeAccountList = RwLock<AccountList>;
 

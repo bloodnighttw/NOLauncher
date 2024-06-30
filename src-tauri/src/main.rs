@@ -8,7 +8,6 @@ use crate::command::login::{
 use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
 use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
-use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 use crate::command::instance::{create_instance, list_versions};
@@ -81,16 +80,16 @@ fn main() {
                 
                 match NoLauncherConfig::load_by_app(&handle){
                     Ok(config) => {
-                        let data = Arc::new(RwLock::new(*config));
+                        let data = RwLock::new(*config);
                         handle.manage(data);
                     }
                     Err(e) => {
                         log::error!("Failed to load the config,: {}", e);
-                        handle.manage(Arc::new(RwLock::new(NoLauncherConfig::default())));
+                        handle.manage(RwLock::new(NoLauncherConfig::default()));
                     }
                 }
 
-                let account_list = Arc::from(RwLock::new(*AccountList::load_by_app(&handle).unwrap_or(Box::new(AccountList::default()))));
+                let account_list = RwLock::new(*AccountList::load_by_app(&handle).unwrap_or(Box::new(AccountList::default())));
                 handle.manage(account_list);
 
             });

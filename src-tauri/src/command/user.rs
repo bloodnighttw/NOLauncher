@@ -1,5 +1,5 @@
 use crate::event::user::change_user;
-use crate::utils::config::{LauncherConfig, Storage};
+use crate::utils::config::{SafeNoLauncherConfig, Storage};
 use tauri::{AppHandle, State};
 use crate::utils::minecraft::auth::{MinecraftProfile, SafeAccountList};
 
@@ -14,7 +14,7 @@ pub async fn get_users(map: State<'_, SafeAccountList>) -> Result<Vec<MinecraftP
 }
 
 #[tauri::command]
-pub async fn get_current_user(current_user: State<'_, LauncherConfig>) -> Result<String, String> {
+pub async fn get_current_user(current_user: State<'_, SafeNoLauncherConfig>) -> Result<String, String> {
     let current_user = current_user.read().await.activate_user_uuid.clone();
     match current_user {
         None => Err("no activate user.".to_string()),
@@ -24,7 +24,7 @@ pub async fn get_current_user(current_user: State<'_, LauncherConfig>) -> Result
 
 #[tauri::command]
 pub async fn set_current_user(
-    current_user: State<'_, LauncherConfig>,
+    current_user: State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
     id: String,
 ) -> Result<String, String> {
@@ -38,7 +38,7 @@ pub async fn set_current_user(
 #[tauri::command]
 pub async fn logout_user(
     accounts: State<'_, SafeAccountList>,
-    config: State<'_, LauncherConfig>,
+    config: State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
     id: String,
 ) -> Result<(), String> {

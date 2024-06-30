@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::utils::minecraft::metadata::MetadataSetting;
 use anyhow::Result;
@@ -20,7 +19,7 @@ pub struct NoLauncherConfig {
     pub instances:Vec<PathBuf>
 }
 
-pub type LauncherConfig = Arc<RwLock<NoLauncherConfig>>;
+pub type SafeNoLauncherConfig = RwLock<NoLauncherConfig>;
 
 pub trait Save: Serialize{
     fn save(&self,path:&Path) -> Result<()>;
