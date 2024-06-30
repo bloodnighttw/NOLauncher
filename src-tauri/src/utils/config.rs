@@ -71,7 +71,42 @@ impl SavePath {
             }
         }
     }
+    
+    pub fn from_config(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_data_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_cache(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_config_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_data(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_data_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_log(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_log_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+    
 }
+
+
 
 
 pub trait Storage<'a>: Save + Load<'a> {

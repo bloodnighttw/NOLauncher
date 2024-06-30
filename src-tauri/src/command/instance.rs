@@ -5,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use crate::utils::config::{Storage, LauncherConfig, NoLauncherConfig};
+use crate::utils::config::{Storage, LauncherConfig, NoLauncherConfig, Save, SavePath};
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
@@ -172,7 +172,6 @@ async fn handle_dep(uid:&str, mc_version:&str, p_version:Option<String>, config:
 
     let data = config.metadata_setting.package_list.data.packages.get(uid).unwrap();
     let sha256 = SHA256(decode_hex(&data.sha256).unwrap());
-    // TODO: we can ignore invalid error here, waiting refactor......
     let details = config.metadata_setting.get_package_details(cached.clone(), uid, sha256).await.unwrap();
 
     let (uid, version) = match uid {
@@ -242,12 +241,11 @@ pub async fn create_instance(
         dep,
         top:uid
     };
-
-    let instance_root = app.path().app_data_dir().unwrap();
-    let instance_path = instance_root.join(uuid);
+    
+    let instance_path = SavePath::from_data(&app,vec![&uuid]).unwrap();
     tokio::fs::create_dir_all(&instance_path).await.unwrap();
     let instance_config_path = instance_path.join("instance.json");
-    tokio::fs::write(instance_config_path, serde_json::to_string(&instance_config).unwrap()).await.unwrap();
+    instance_config.save(&instance_config_path).unwrap();
 
     {
         let mut config = config.write().await;
