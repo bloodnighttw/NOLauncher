@@ -111,5 +111,5 @@ impl SavePath {
 
 pub trait Storage<'a>: Save + Load<'a> {
     fn save_by_app(&self, app:&AppHandle) -> Result<()>;
-    fn load_by_app(app:&AppHandle) -> Result<()>;
+    fn load_by_app(app:&AppHandle) -> Result<Box<Self>>;
 }

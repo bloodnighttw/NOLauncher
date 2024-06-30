@@ -71,10 +71,10 @@ fn impl_config(ast:DeriveInput) -> TokenStream{
                 Ok(())
             }
 
-            fn load_by_app(app: &tauri::AppHandle) -> anyhow::Result<()> {
+            fn load_by_app(app: &tauri::AppHandle) -> anyhow::Result<Box<Self>> {
                 let path = #attr.to_path(app)?;
-                Self::load(&path)?;
-                Ok(())
+                let temp = Self::load(&path)?;
+                Ok(temp)
             }
         }
     };
