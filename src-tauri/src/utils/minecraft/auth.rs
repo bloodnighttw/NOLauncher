@@ -12,6 +12,11 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use thiserror::Error;
 use tokio::sync::RwLock;
+use nolauncher_derive::{Load, Save, Storage};
+use crate::constant::ACCOUNTS_DATA;
+use crate::utils::config::Save;
+use crate::utils::config::Load;
+
 
 const DEVICECODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -119,7 +124,7 @@ impl TimeSensitiveTrait for DeviceCodeResponse {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MicrosoftAuthResponse {
     pub token_type: String,
     pub scope: String,
@@ -157,7 +162,7 @@ impl TimeSensitiveTrait for MinecraftAuthResponse {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinecraftSkin {
     pub id: String,
@@ -167,7 +172,7 @@ pub struct MinecraftSkin {
     pub variant: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinecraftCaps {
     pub id: String,
@@ -177,7 +182,7 @@ pub struct MinecraftCaps {
 }
 
 /// Represents the information of user's Minecraft profile
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinecraftProfile {
     pub id: String,
@@ -709,3 +714,15 @@ pub async fn read(app_handle: &AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[derive(Serialize,Deserialize,Clone,Debug)]
+pub struct Account{
+    pub profile:MinecraftProfile,
+    pub msa:TimeSensitiveData<MicrosoftAuthResponse>
+}
+
+#[derive(Serialize,Deserialize,Clone,Debug,Save,Load,Storage,Default)]
+#[serde(transparent)]
+#[save_path(ACCOUNTS_DATA)]
+pub struct AccountList(pub Vec<Account>);
+
