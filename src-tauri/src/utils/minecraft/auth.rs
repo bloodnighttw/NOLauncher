@@ -1,15 +1,12 @@
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
-use log::info;
-use reqwest::header::{CONTENT_TYPE, PRAGMA};
+use reqwest::header::{CONTENT_TYPE};
 use reqwest::Client;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use nolauncher_derive::{Load, Save, Storage};
@@ -39,22 +36,22 @@ pub enum MinecraftAuthStep {
     /// If the user does not authorize the app within this time, the user code will expire.
     DeviceCode(TimeSensitiveData<DeviceCodeResponse>),
     /// Wait for the user to authorize the app.
-    MicrosoftAuth(Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>),
+    MicrosoftAuth(TimeSensitiveData<MicrosoftAuthResponse>),
 
     /// Exchange the device code for an access token.
     XboxLiveAuth(
-        Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
+        TimeSensitiveData<MicrosoftAuthResponse>,
         String,
     ),
     /// Exchange the Xbox Live access token for an Xbox Security Token.
     XboxSecurityAuth(
-        Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
+        TimeSensitiveData<MicrosoftAuthResponse>,
         String,
         String,
     ),
     MinecraftAuth(
-        Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
-        Arc<TimeSensitiveData<MinecraftAuthResponse>>,
+        TimeSensitiveData<MicrosoftAuthResponse>,
+        TimeSensitiveData<MinecraftAuthResponse>,
     ),
 }
 
@@ -147,7 +144,7 @@ pub struct MinecraftAuthorizationFlow {
     pub status: MinecraftAuthStep,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize,Debug,Clone)]
 pub struct MinecraftAuthResponse {
     username: String,
     access_token: String,
@@ -289,9 +286,9 @@ impl MinecraftAuthorizationFlow {
             Err(e) => return Err(MinecraftAuthError::UnknownError(e.to_string())),
         };
 
-        self.status = MinecraftAuthStep::MicrosoftAuth(Arc::new(RwLock::new(
+        self.status = MinecraftAuthStep::MicrosoftAuth(
             TimeSensitiveData::new(response),
-        )));
+        );
 
         Ok(())
     }
@@ -303,12 +300,11 @@ impl MinecraftAuthorizationFlow {
         };
 
         let xbox_authenticate_json = {
-            let r_data = data.write().await;
             let xbox_authenticate_json = json!({
                 "Properties": {
                     "AuthMethod": "RPS",
                     "SiteName": "user.auth.xboxlive.com",
-                    "RpsTicket": &format!("d={}", r_data.data.access_token)
+                    "RpsTicket": &format!("d={}", data.data.access_token)
                 },
                 "RelyingParty": "http://auth.xboxlive.com",
                 "TokenType": "JWT"
@@ -420,7 +416,7 @@ impl MinecraftAuthorizationFlow {
 
     pub async fn get_minecraft_token(
         &mut self,
-    ) -> Result<Arc<TimeSensitiveData<MinecraftAuthResponse>>, MinecraftAuthError> {
+    ) -> Result<TimeSensitiveData<MinecraftAuthResponse>, MinecraftAuthError> {
         let (data, token, uhs) = match &self.status {
             MinecraftAuthStep::XboxSecurityAuth(data, token, user_hash) => (data, token, user_hash),
             _ => return Err(MinecraftAuthError::InvalidState),
@@ -450,13 +446,13 @@ impl MinecraftAuthorizationFlow {
             Err(e) => return Err(MinecraftAuthError::UnknownError(e.to_string())),
         };
 
-        let minecraft_auth = Arc::new(TimeSensitiveData::new(res));
+        let minecraft_auth =TimeSensitiveData::new(res);
         self.status = MinecraftAuthStep::MinecraftAuth(data.clone(), minecraft_auth.clone());
 
         Ok(minecraft_auth.clone())
     }
 
-    pub async fn check_minecraft_profile(&mut self) -> Result<LoginAccount, MinecraftAuthError> {
+    pub async fn check_minecraft_profile(&mut self) -> Result<Account, MinecraftAuthError> {
         let (data, profile) = match &self.status {
             MinecraftAuthStep::MinecraftAuth(data, profile) => (data.clone(), profile.clone()),
             _ => return Err(MinecraftAuthError::InvalidState),
@@ -487,233 +483,14 @@ impl MinecraftAuthorizationFlow {
 
         self.reset();
 
-        let profile_data = Arc::new(profile_data);
-
-        Ok(LoginAccount {
-            microsoft: data.clone(),
-            profile: profile_data.clone(),
+        Ok(Account{
+            profile: profile_data,
+            msa: data,
         })
     }
 }
 
 pub type AuthFlow = RwLock<MinecraftAuthorizationFlow>;
-
-pub struct LoginAccount {
-    pub microsoft: Arc<RwLock<TimeSensitiveData<MicrosoftAuthResponse>>>,
-    pub profile: Arc<MinecraftProfile>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MinecraftLaunchData {
-    pub profile: Arc<MinecraftProfile>,
-    pub token: Arc<TimeSensitiveData<MinecraftAuthResponse>>,
-}
-
-pub type MinecraftUUIDMap = RwLock<HashMap<String, Arc<LoginAccount>>>;
-
-impl LoginAccount {
-    async fn check_microsoft_token(&mut self) -> Result<(), String> {
-        if !self.microsoft.read().await.is_vaild() {
-            return Ok(());
-        }
-
-        {
-            let mut data = self.microsoft.write().await;
-            let params: HashMap<String, String> = HashMap::from([
-                (
-                    String::from("client_id"),
-                    env!("MICROSOFT_CLIENT_ID").to_string(),
-                ),
-                (String::from("scope"), String::from(SCOPE)),
-                (
-                    String::from("refresh_token"),
-                    data.data.refresh_token.clone(),
-                ),
-                (String::from("grant_type"), String::from("refresh_token")),
-            ]);
-
-            let client = Client::new();
-
-            let response = client
-                .post(TOKEN_URL)
-                .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .form(&params)
-                .header(PRAGMA, "no-cache")
-                .header("Cache-Control", "no-store")
-                .send()
-                .await;
-
-            let refresh_token: MicrosoftAuthResponse = match response {
-                Ok(response) => {
-                    if response.status() == 200 {
-                        response.json().await.expect("this should be success!")
-                    } else {
-                        return Err(format!(
-                            "Failed to refresh token. status code:{}",
-                            response.status()
-                        ));
-                    }
-                }
-                Err(e) => return Err(format!("Failed to refresh token. details:{}", e)),
-            };
-
-            *data = TimeSensitiveData::new(refresh_token);
-        }
-
-        Ok(())
-    }
-
-    pub async fn get_launch_data(&mut self) -> Result<MinecraftLaunchData, String> {
-        self.check_microsoft_token().await?;
-        let mut authflow = MinecraftAuthorizationFlow::from(
-            env!("MICROSOFT_CLIENT_ID"),
-            MinecraftAuthStep::MicrosoftAuth(self.microsoft.clone()),
-        );
-        let response = authflow.xbox_live_auth().await;
-        if let Err(e) = response {
-            return Err(e.to_string());
-        }
-
-        let response = authflow.xbox_security_auth().await;
-        if let Err(e) = response {
-            return Err(e.to_string());
-        }
-
-        let response = authflow.get_minecraft_token().await;
-        let token = match response {
-            Ok(res) => res.clone(),
-            Err(e) => return Err(e.to_string()),
-        };
-
-        let response = authflow.check_minecraft_profile().await;
-        let latest_account = match response {
-            Ok(pair) => pair,
-            Err(e) => return Err(e.to_string()),
-        };
-
-        self.profile = latest_account.profile.clone();
-
-        Ok(MinecraftLaunchData {
-            profile: latest_account.profile,
-            token,
-        })
-    }
-}
-
-pub async fn save(app_handle: &AppHandle) -> Result<(), String> {
-    let usermap = app_handle.state::<MinecraftUUIDMap>();
-    let config = app_handle.path().app_config_dir();
-    if let Ok(config_path) = config {
-        let token = config_path.join("token");
-        let profile = config_path.join("profile");
-        if let Err(e) = tokio::fs::create_dir_all(&token).await {
-            return Err(format!("Failed to create user directory. details:{}", e));
-        }
-        if let Err(e) = tokio::fs::create_dir_all(&profile).await {
-            return Err(format!("Failed to create user directory. details:{}", e));
-        }
-        for (uuid, login_data) in usermap.read().await.iter() {
-            let token_file_path = token.join(format!("{}.json", uuid));
-            let profile_file_path = profile.join(format!("{}.json", uuid));
-            let microsoft = login_data.microsoft.read().await;
-            if let Err(e) = tokio::fs::write(
-                token_file_path,
-                serde_json::to_string(&microsoft.deref()).expect("this should be success!"),
-            )
-            .await
-            {
-                return Err(format!("Failed to save token data. details:{}", e));
-            }
-            if let Err(e) = tokio::fs::write(
-                profile_file_path,
-                serde_json::to_string(&login_data.profile.deref())
-                    .expect("this should be success!"),
-            )
-            .await
-            {
-                return Err(format!("Failed to save profile data. details:{}", e));
-            }
-        }
-    } else {
-        return Err("Failed to get the config directory. details:path not found.".to_string());
-    }
-
-    Ok(())
-}
-
-pub async fn read(app_handle: &AppHandle) -> Result<(), String> {
-    let usermap: State<MinecraftUUIDMap> = app_handle.state::<MinecraftUUIDMap>();
-    let config = app_handle.path().app_config_dir();
-    if let Ok(config_path) = config {
-        let token_path = config_path.join("token");
-        let profile_path = config_path.join("profile");
-        let token = tokio::fs::read_dir(token_path).await;
-        if let Ok(mut files) = token {
-            loop {
-                let file = files.next_entry().await;
-                let (uuid, microsoft) = if let Ok(file) = file {
-                    if let Some(file) = file {
-                        if let Ok(metadata) = file.metadata().await {
-                            if metadata.is_dir() {
-                                continue;
-                            }
-                        }
-                        let uuid = file
-                            .file_name()
-                            .to_string_lossy()
-                            .strip_suffix(".json")
-                            .expect("this should be success!")
-                            .to_string();
-                        let body = tokio::fs::read_to_string(file.path()).await;
-                        let microsoft: TimeSensitiveData<MicrosoftAuthResponse> = if let Ok(body) =
-                            body
-                        {
-                            serde_json::from_str(&body).expect("this should be success!")
-                        } else {
-                            println!("failed to read the file. details:{}", body.err().unwrap());
-                            continue;
-                        };
-                        (uuid, microsoft)
-                    } else {
-                        break;
-                    }
-                } else {
-                    return Err(format!(
-                        "Failed to read the user directory. details:{}",
-                        file.err().unwrap()
-                    ));
-                };
-
-                let profile_file = profile_path.join(format!("{}.json", uuid));
-                let profile_body = tokio::fs::read_to_string(profile_file).await;
-                let profile: MinecraftProfile = 
-                    if let Ok(profile_body) = profile_body {
-                        serde_json::from_str(&profile_body).expect("this should be success!")
-                    } else {
-                        info!(
-                            "failed to read the file. details:{}",
-                            profile_body.err().unwrap()
-                        );
-                        continue;
-                    };
-
-                let login_data = LoginAccount {
-                    microsoft: Arc::new(RwLock::new(microsoft)),
-                    profile: Arc::new(profile),
-                };
-                usermap.write().await.insert(uuid, Arc::new(login_data));
-            }
-        } else {
-            return Err(format!(
-                "Failed to read file. details:{}",
-                token.err().unwrap()
-            ));
-        }
-    } else {
-        return Err("Failed to get the config directory.".to_string());
-    }
-    Ok(())
-}
 
 #[derive(Serialize,Deserialize,Clone,Debug)]
 pub struct Account{
@@ -725,4 +502,33 @@ pub struct Account{
 #[serde(transparent)]
 #[save_path(ACCOUNTS_DATA)]
 pub struct AccountList(pub Vec<Account>);
+
+impl AccountList {
+    pub fn add(&mut self,account:Account){
+        let data = self.0.iter().find(
+            |x| x.profile.id == account.profile.id
+        );
+        
+        if data.is_none(){
+            self.0.push(account);
+        }
+    }
+    
+    pub fn find(&mut self,id:&str) -> Option<&mut Account>{
+        for i in self.0.iter_mut() {
+            if i.profile.id == id{
+                return Some(i);
+            }
+        }
+        
+        None
+    }
+    
+    pub fn remove(&mut self, id:&str){
+        self.0.retain(|x| x.profile.id != id)
+    }
+    
+}
+
+pub type SafeAccountList = Arc<RwLock<AccountList>>;
 

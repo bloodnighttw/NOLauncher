@@ -210,8 +210,8 @@ export default function SideBar() {
                 <div
                     className="p-1.5 duration-200 rounded-md"
                     onClick={() => {
-                        invoke("get_users").then((res) => {
-                            setUsers(JSON.parse(res as string) as Array<Profile>)
+                        invoke<Array<Profile>>("get_users").then((res) => {
+                            setUsers(res)
                         }).catch(console.error)
                         setMenu(true)
                     }}

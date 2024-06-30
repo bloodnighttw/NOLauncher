@@ -6,15 +6,13 @@ use crate::command::login::{
     xbox_xsts_auth,
 };
 use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
-use crate::utils::config::{Load, NoLauncherConfig};
+use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 use crate::command::instance::{create_instance, list_versions};
-use crate::constant::NOLAUNCHER_CONFIG_FILE;
-use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
+use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
 
 mod command;
 mod event;
@@ -54,7 +52,6 @@ fn main() {
     }
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
-    let usermap: MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
     let builder = tauri::Builder::default();
 
     #[cfg(debug_assertions)]
@@ -64,7 +61,6 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .manage(authflow)
-        .manage(usermap)
         .invoke_handler(tauri::generate_handler![
             devicecode_init,
             devicecode_exchange,
@@ -82,14 +78,8 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
             tauri::async_runtime::block_on(async move {
-                let res = read(handle).await;
-                if let Err(e) = res {
-                    log::error!("Failed to load the usermap: {}", e);
-                }
-
-                let config_path = handle.path().app_config_dir().unwrap();
-
-                match NoLauncherConfig::load(&NOLAUNCHER_CONFIG_FILE.to_path(&handle).unwrap()) {
+                
+                match NoLauncherConfig::load_by_app(&handle){
                     Ok(config) => {
                         let data = Arc::new(RwLock::new(*config));
                         handle.manage(data);
@@ -99,6 +89,10 @@ fn main() {
                         handle.manage(Arc::new(RwLock::new(NoLauncherConfig::default())));
                     }
                 }
+
+                let account_list = Arc::from(RwLock::new(*AccountList::load_by_app(&handle).unwrap_or(Box::new(AccountList::default()))));
+                handle.manage(account_list);
+
             });
             Ok(())
         })
