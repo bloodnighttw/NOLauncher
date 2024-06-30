@@ -1,8 +1,7 @@
 use crate::event::user::change_user;
 use crate::utils::minecraft::auth::MinecraftUUIDMap;
-use crate::utils::config::{LauncherConfig, Save};
+use crate::utils::config::{LauncherConfig, Storage};
 use tauri::{AppHandle, State};
-use crate::constant::NOLAUNCHER_CONFIG_FILE;
 
 #[tauri::command]
 pub async fn get_users(map: State<'_, MinecraftUUIDMap>) -> Result<String, String> {
@@ -31,7 +30,7 @@ pub async fn set_current_user(
     let mut current_user = current_user.write().await;
     current_user.activate_user_uuid = Some(id.clone());
     change_user(Some(id), &app).await;
-    let _ = current_user.save(&NOLAUNCHER_CONFIG_FILE.to_path(&app).unwrap()).unwrap();
+    let _ = current_user.save_by_app(&app);
     Ok("".to_string())
 }
 
@@ -48,7 +47,7 @@ pub async fn logout_user(
         change_user(None, &app).await;
         let mut current_user = current_user.write().await;
         current_user.activate_user_uuid = None;
-        let _ = current_user.save(&NOLAUNCHER_CONFIG_FILE.to_path(&app).unwrap()).unwrap();
+        let _ = current_user.save_by_app(&app);
     }
     Ok("".to_string())
 }
