@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use syn::{DeriveInput, Meta};
+use syn::{DeriveInput, ItemStruct, Meta};
 
 #[cfg(test)]
 mod tests {
@@ -86,5 +86,37 @@ fn impl_config(ast:DeriveInput) -> TokenStream{
 pub fn config_path(item: TokenStream) -> TokenStream {
     let ast:DeriveInput = syn::parse(item).unwrap();
     let implement = impl_config(ast);
+    implement
+}
+
+fn impl_time(ast:ItemStruct) -> TokenStream{
+    let ident = ast.ident;
+    let duration_filed = ast.fields.iter()
+        .find(
+            |x| -> bool {
+                let has_attr = x.attrs.iter().find(
+                    |i| i.path().segments.len() == 1 && i.path().segments[0].ident == "dur"
+                );
+                has_attr != None
+            }
+        ).expect("you should have attr #[dur] in your std::time::Duration field");
+    
+    let ident2 = duration_filed.ident.clone().unwrap();
+    
+    let token = quote::quote! {
+        impl crate::utils::data::TimeSensitiveTrait for #ident{
+            fn get_duration(&self) -> std::time::Duration {
+                self.#ident2
+            }
+        }
+    };
+    
+    token.into()
+}
+
+#[proc_macro_derive(TimeSensitive, attributes(dur))]
+pub fn time_sensitive(item:TokenStream) -> TokenStream{
+    let ast:ItemStruct = syn::parse(item).unwrap();
+    let implement = impl_time(ast);
     implement
 }

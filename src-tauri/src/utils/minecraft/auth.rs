@@ -1,4 +1,4 @@
-use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
+use crate::utils::data::TimeSensitiveData;
 use anyhow::Result;
 use reqwest::header::{CONTENT_TYPE};
 use reqwest::Client;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use nolauncher_derive::{Load, Save, Storage};
+use nolauncher_derive::{Load, Save, Storage, TimeSensitive};
 use crate::constant::ACCOUNTS_DATA;
 use crate::utils::config::Save;
 use crate::utils::config::Load;
@@ -104,37 +104,27 @@ where
     s.serialize_u64(x.as_secs())
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, TimeSensitive)]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,
     pub verification_uri: String,
     #[serde(deserialize_with = "to_duration", serialize_with = "to_u64")]
+    #[dur]
     pub expires_in: Duration,
     pub interval: u64,
 }
 
-impl TimeSensitiveTrait for DeviceCodeResponse {
-    fn get_duration(&self) -> Duration {
-        self.expires_in
-    }
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, TimeSensitive)]
 pub struct MicrosoftAuthResponse {
     pub token_type: String,
     pub scope: String,
     #[serde(deserialize_with = "to_duration", serialize_with = "to_u64")]
+    #[dur]
     pub expires_in: Duration,
     pub ext_expires_in: u64,
     pub access_token: String,
     pub refresh_token: String,
-}
-
-impl TimeSensitiveTrait for MicrosoftAuthResponse {
-    fn get_duration(&self) -> Duration {
-        self.expires_in
-    }
 }
 
 pub struct MinecraftAuthorizationFlow {
@@ -143,19 +133,14 @@ pub struct MinecraftAuthorizationFlow {
     pub status: MinecraftAuthStep,
 }
 
-#[derive(Serialize, Deserialize,Debug,Clone)]
+#[derive(Serialize, Deserialize,Debug,Clone, TimeSensitive)]
 pub struct MinecraftAuthResponse {
     username: String,
     access_token: String,
     #[serde(deserialize_with = "to_duration", serialize_with = "to_u64")]
+    #[dur]
     expires_in: Duration,
     token_type: String,
-}
-
-impl TimeSensitiveTrait for MinecraftAuthResponse {
-    fn get_duration(&self) -> Duration {
-        self.expires_in
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
