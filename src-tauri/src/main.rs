@@ -6,18 +6,17 @@ use crate::command::login::{
     xbox_xsts_auth,
 };
 use crate::command::user::{get_current_user, get_users, logout_user, set_current_user};
-use crate::utils::config::NoLauncherConfig;
+use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
-use std::collections::HashMap;
-use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 use crate::command::instance::{create_instance, list_versions};
-use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthorizationFlow, MinecraftUUIDMap, read};
+use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
 
 mod command;
 mod event;
 mod utils;
+mod constant;
 
 struct Logger;
 
@@ -52,7 +51,6 @@ fn main() {
     }
     
     let authflow = AuthFlow::new(MinecraftAuthorizationFlow::new(CLIENT_ID));
-    let usermap: MinecraftUUIDMap = MinecraftUUIDMap::new(HashMap::new());
     let builder = tauri::Builder::default();
 
     #[cfg(debug_assertions)]
@@ -62,7 +60,6 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .manage(authflow)
-        .manage(usermap)
         .invoke_handler(tauri::generate_handler![
             devicecode_init,
             devicecode_exchange,
@@ -80,22 +77,21 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
             tauri::async_runtime::block_on(async move {
-                let res = read(handle).await;
-                if let Err(e) = res {
-                    log::error!("Failed to load the usermap: {}", e);
-                }
-
-                let config_path = handle.path().app_config_dir().unwrap();
-
-                match NoLauncherConfig::read_from_path(config_path.join("config.json")).await {
+                
+                match NoLauncherConfig::load_by_app(&handle){
                     Ok(config) => {
-                        handle.manage(config);
+                        let data = RwLock::new(*config);
+                        handle.manage(data);
                     }
                     Err(e) => {
                         log::error!("Failed to load the config,: {}", e);
-                        handle.manage(Arc::new(RwLock::new(NoLauncherConfig::default())));
+                        handle.manage(RwLock::new(NoLauncherConfig::default()));
                     }
                 }
+
+                let account_list = RwLock::new(*AccountList::load_by_app(&handle).unwrap_or(Box::new(AccountList::default())));
+                handle.manage(account_list);
+
             });
             Ok(())
         })

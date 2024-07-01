@@ -5,9 +5,10 @@ use crate::utils::minecraft::metadata::{decode_hex, equal_my_platform, Library, 
 use crate::utils::minecraft::metadata::Library::Common;
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
+use nolauncher_derive::{Load, Save};
 
 
-#[derive(Serialize,Deserialize,Debug,Default)]
+#[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
 pub struct InstanceConfig{
     #[serde(default)]
     pub id:String,

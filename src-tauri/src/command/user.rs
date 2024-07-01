@@ -1,19 +1,20 @@
 use crate::event::user::change_user;
-use crate::utils::minecraft::auth::MinecraftUUIDMap;
-use crate::utils::config::LauncherConfig;
+use crate::utils::config::{SafeNoLauncherConfig, Storage};
 use tauri::{AppHandle, State};
+use crate::utils::minecraft::auth::{MinecraftProfile, SafeAccountList};
 
 #[tauri::command]
-pub async fn get_users(map: State<'_, MinecraftUUIDMap>) -> Result<String, String> {
-    let mut vec = Vec::new();
-    for (_, login_account) in map.read().await.iter() {
-        vec.push(login_account.profile.clone());
-    }
-    Ok(serde_json::to_string(&vec).unwrap())
+pub async fn get_users(map: State<'_, SafeAccountList>) -> Result<Vec<MinecraftProfile>, String> {
+    let list = map.read().await.0
+        .iter()
+        .map(|x| x.profile.clone())
+        .collect();
+    
+    Ok(list)
 }
 
 #[tauri::command]
-pub async fn get_current_user(current_user: State<'_, LauncherConfig>) -> Result<String, String> {
+pub async fn get_current_user(current_user: State<'_, SafeNoLauncherConfig>) -> Result<String, String> {
     let current_user = current_user.read().await.activate_user_uuid.clone();
     match current_user {
         None => Err("no activate user.".to_string()),
@@ -23,31 +24,43 @@ pub async fn get_current_user(current_user: State<'_, LauncherConfig>) -> Result
 
 #[tauri::command]
 pub async fn set_current_user(
-    current_user: State<'_, LauncherConfig>,
+    current_user: State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
     id: String,
 ) -> Result<String, String> {
     let mut current_user = current_user.write().await;
     current_user.activate_user_uuid = Some(id.clone());
     change_user(Some(id), &app).await;
-    let _ = current_user.save(&app).await;
+    let _ = current_user.save_by_app(&app);
     Ok("".to_string())
 }
 
 #[tauri::command]
 pub async fn logout_user(
-    map: State<'_, MinecraftUUIDMap>,
-    current_user: State<'_, LauncherConfig>,
+    accounts: State<'_, SafeAccountList>,
+    config: State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
     id: String,
-) -> Result<String, String> {
+) -> Result<(), String> {
+
     {
-        let mut map = map.write().await;
-        map.remove(&id);
-        change_user(None, &app).await;
-        let mut current_user = current_user.write().await;
-        current_user.activate_user_uuid = None;
-        let _ = current_user.save(&app).await;
+        let mut accounts = accounts.write().await;
+        accounts.remove(&id);
+        // TODO: Remove unwrap here!
+        accounts.save_by_app(&app).unwrap();
     }
-    Ok("".to_string())
+
+    {
+        let mut config =config.write().await;
+        if let Some(uid) = &config.activate_user_uuid{
+            if uid == &id{
+                config.activate_user_uuid = None;
+                // TODO: Remove unwrap here!
+                config.save_by_app(&app).unwrap();
+            }
+        }
+    };
+
+    change_user(None, &app).await;
+    Ok(())
 }

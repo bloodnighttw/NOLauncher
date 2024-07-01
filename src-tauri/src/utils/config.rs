@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use std::path::{Path, PathBuf};
 use tokio::sync::RwLock;
 use crate::utils::minecraft::metadata::MetadataSetting;
+use anyhow::Result;
+use tauri::{AppHandle, Manager};
+use nolauncher_derive::{Storage, Load, Save};
+use crate::constant::NOLAUNCHER_CONFIG_FILE;
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+
+#[derive(Deserialize, Serialize, Debug, Clone, Default, Save, Load, Storage)]
+#[save_path(NOLAUNCHER_CONFIG_FILE)]
 pub struct NoLauncherConfig {
     #[serde(default)]
     pub activate_user_uuid: Option<String>,
@@ -15,38 +19,96 @@ pub struct NoLauncherConfig {
     pub instances:Vec<PathBuf>
 }
 
-pub type LauncherConfig = Arc<RwLock<NoLauncherConfig>>;
+pub type SafeNoLauncherConfig = RwLock<NoLauncherConfig>;
 
-impl NoLauncherConfig {
-    pub async fn save(&self, app: &AppHandle) -> Result<(), String> {
-        // save the config to the disk
-        let config_path = app.path().app_config_dir();
-        if let Ok(config_path) = config_path {
-            let config_path = config_path.join("config.json");
-            let content = serde_json::to_string(self).unwrap();
-            let res = tokio::fs::write(config_path, content).await;
-            return match res {
-                Ok(_) => Ok(()),
-                Err(e) => Err(format!("Failed to save the config: {}", e)),
-            };
-        }
-        Err("Failed to get the config path".to_string())
-    }
+pub trait Save: Serialize{
+    fn save(&self,path:&Path) -> Result<()>;
+}
 
-    pub async fn read_from_path(config_path: PathBuf) -> Result<LauncherConfig, String> {
-        let res = tokio::fs::read_to_string(config_path).await;
-        match res {
-            Ok(content) => {
-                let config = serde_json::from_str::<NoLauncherConfig>(&content);
-                match config {
-                    Ok(config) => Ok(Arc::new(RwLock::new(config))),
-                    Err(e) => Err(format!(
-                        "Failed to parse the config. details:{}",
-                        e
-                    )),
+pub trait Load<'a> : Deserialize<'a>{
+    fn load(path:&Path) -> Result<Box<Self>>;
+}
+
+#[derive(Debug)]
+pub enum SavePath {
+    Cache(&'static [&'static str]),
+    Data(&'static [&'static str]),
+    Config(&'static [&'static str]),
+    Log(&'static [&'static str])
+}
+
+impl SavePath {
+    pub fn to_path(&self,app:&AppHandle) -> Result<PathBuf>{
+        match self {
+            SavePath::Cache(expand) => {
+                let mut j = app.path().app_cache_dir()?;
+                for i in expand.iter(){
+                    j = j.join(i);
                 }
+                Ok(j)
             }
-            Err(e) => Err(format!("Failed to read the config: {}", e))
+            SavePath::Data(expand) => {
+                let mut j = app.path().app_data_dir()?;
+                for i in expand.iter(){
+                    j = j.join(i);
+                }
+                Ok(j)
+            }
+            SavePath::Config(expand) => {
+                let mut j = app.path().app_config_dir()?;
+                for i in expand.iter(){
+                    j = j.join(i);
+                }
+                Ok(j)
+            }
+            SavePath::Log(expand) => {
+                let mut j = app.path().app_log_dir()?;
+                for i in expand.iter(){
+                    j = j.join(i);
+                }
+                Ok(j)
+            }
         }
     }
+    
+    pub fn from_config(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_data_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_cache(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_config_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_data(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_data_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+
+    pub fn from_log(app:&AppHandle,paths:Vec<&str>) -> Result<PathBuf> {
+        let mut j = app.path().app_log_dir()?;
+        for i in paths.iter(){
+            j.push(i);
+        }
+        Ok(j)
+    }
+    
+}
+
+
+
+
+pub trait Storage<'a>: Save + Load<'a> {
+    fn save_by_app(&self, app:&AppHandle) -> Result<()>;
+    fn load_by_app(app:&AppHandle) -> Result<Box<Self>>;
 }
