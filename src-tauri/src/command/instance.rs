@@ -9,6 +9,7 @@ use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
+use crate::utils::result::CommandResult;
 
 
 const MINECRAFT_UID:&str = "net.minecraft";
@@ -72,7 +73,7 @@ async fn fetch_uid(
 }
 
 #[tauri::command]
-pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandle) -> Result<MinecraftInfoResponse, String> {
+pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandle) -> CommandResult<MinecraftInfoResponse> {
     let lock = config;
     let mut not_up_to_date_flag = false;
 
@@ -84,11 +85,12 @@ pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandl
                 not_up_to_date_flag = true;
             }
         }
+        config.save_by_app(&app)?
     }
 
     let config = lock.read().await;
     
-    let default_path = app.path().app_cache_dir().unwrap();
+    let default_path = app.path().app_cache_dir()?;
     let minecraft = fetch_uid(&config,&default_path,MINECRAFT_UID).await;
     let fabric_loader = fetch_uid(&config,&default_path,FABRIC_UID).await;
     let intermediary = fetch_uid(&config, &default_path, INTERMEDIARY_UID).await;
@@ -218,7 +220,7 @@ pub async fn create_instance(
     request:InstanceCreateRequest,
     config:State<'_, SafeNoLauncherConfig>,
     app: AppHandle,
-) -> Result<String,String> {
+) -> CommandResult<String> {
 
     let uid = ptype2uid(request.ptype);
     let version = request.version;
@@ -226,7 +228,7 @@ pub async fn create_instance(
 
     let dep ={
         let config = config.read().await;
-        let cached = app.path().cache_dir().unwrap();
+        let cached = app.path().cache_dir()?;
         handle_dep(&uid, &version, p_version, &config, &cached).await
     };
 
@@ -243,14 +245,14 @@ pub async fn create_instance(
     };
     
     let instance_path = SavePath::from_data(&app,vec![&uuid]).unwrap();
-    tokio::fs::create_dir_all(&instance_path).await.unwrap();
+    tokio::fs::create_dir_all(&instance_path).await?;
     let instance_config_path = instance_path.join("instance.json");
-    instance_config.save(&instance_config_path).unwrap();
+    instance_config.save(&instance_config_path)?;
 
     {
         let mut config = config.write().await;
         config.instances.push(instance_path);
-        config.save_by_app(&app).unwrap();
+        config.save_by_app(&app)?;
     }
 
     Ok(String::default())
