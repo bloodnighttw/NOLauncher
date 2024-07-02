@@ -478,7 +478,8 @@ impl MetadataSetting{
                     }
 
                     if let MetadataFileError::Invalid = error{
-                        Self::fetch_and_store(file.clone(),&url).await?;
+                        Self::fetch_and_store(file.clone(),&url).await?; // error here!
+                        continue
                     }
 
                     return Err(error)
