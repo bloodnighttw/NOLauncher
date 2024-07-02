@@ -1,5 +1,6 @@
-import React from "react";
+import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {invoke} from "@tauri-apps/api/core";
 
 
 
@@ -21,7 +22,7 @@ function InstanceItem(props:InstanceProp) {
         navigate("/instance/"+props.instanceId);
     }
 
-    return <div className="flex flex-col p-2 select-all" onDoubleClick={doubleClickToInstance}>
+    return <div className="flex flex-col select-all" onDoubleClick={doubleClickToInstance}>
         <div className="w-20 h-20 mx-2 rounded-md">
             <img src={props.img} className="w-20 h-20 rounded-md object-cover"></img>
         </div>
@@ -47,7 +48,7 @@ function AddInstance() {
     }
 
     return (
-        <div className="flex flex-col p-2 select-all" onDoubleClick={doubleClickToCreate}>
+        <div className="flex flex-col select-all" onDoubleClick={doubleClickToCreate}>
             <div className="w-20 h-20 mx-2 rounded-md">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5}
                      stroke="currentColor" className="w-16 h-16 m-2 duration-200 text-gray-600 hover:text-gray-900">
@@ -63,14 +64,26 @@ function AddInstance() {
 
 export function Home() {
 
+    const [instances,setInstances] = useState<Array<InstanceInfo>>([]);
+
+    useEffect( ()=>{
+        invoke<Array<InstanceInfo>>("list_instance").then((res)=>{
+            setInstances(res)
+        }).catch(console.error)
+
+    },[setInstances])
+
     return (
         <div>
-        <InstanceList>
-                <InstanceItem
-                    img="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLqPCLMpN2yRL9noYNEuddweIC-Spud6jIuA&s"
-                    text="never gonna give u up, never gonna let u down"
-                    instanceId="0xz4da"
-                />
+            <InstanceList>
+
+                {instances.map((i) =>(
+                    <InstanceItem
+                        img="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLqPCLMpN2yRL9noYNEuddweIC-Spud6jIuA&s"
+                        text={i.name}
+                        instanceId={i.id}
+                    />
+                ))}
                 <AddInstance/>
             </InstanceList>
         </div>

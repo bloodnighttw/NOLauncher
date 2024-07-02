@@ -10,7 +10,7 @@ use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
 use tauri::Manager;
 use tokio::sync::RwLock;
-use crate::command::instance::{create_instance, list_versions};
+use crate::command::instance::{create_instance, list_instance, list_versions};
 use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
 
 mod command;
@@ -72,7 +72,8 @@ fn main() {
             set_current_user,
             logout_user,
             list_versions,
-            create_instance
+            create_instance,
+            list_instance
         ])
         .setup(|app| {
             let handle = app.handle();

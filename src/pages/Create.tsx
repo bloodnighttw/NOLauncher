@@ -217,13 +217,14 @@ function NewInstance(props:Props) {
             <button className="btn btn-sm bg-base-100 duration-400"
                     disabled={!dataValid()}
                     onClick={() => {
+                        let request:InstanceCreateRequest = {
+                            name: props.name,
+                            ptype: platform,
+                            version: selectedVersion,
+                            mod_version: selectedMod
+                        };
                         invoke("create_instance", {
-                            request:{
-                                name: props.name,
-                                ptype: platform,
-                                version: selectedVersion,
-                                mod_version: selectedMod
-                            }
+                            request:request
                         }).then(()=>navigate("/")).catch(console.error)
                     }}
             >Create!</button>

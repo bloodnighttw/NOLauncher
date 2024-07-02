@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::fs::read_dir;
 use std::path::PathBuf;
 use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath};
+use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::InstanceConfig;
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
@@ -256,6 +257,37 @@ pub async fn create_instance(
     }
 
     Ok(String::default())
+}
+
+#[derive(Serialize,Debug)]
+pub struct InstanceInfo{
+    pub id:String,
+    pub name:String
+}
+
+#[tauri::command]
+pub async  fn list_instance(
+    app: AppHandle
+) -> CommandResult<Vec<InstanceInfo>>{
+    let mut vec = Vec::default();
+
+    let data_path = &app.path().app_data_dir()?;
+
+    let folders = read_dir(data_path)?;
+
+    for i in folders {
+        let path = i?.path();
+        if path.is_dir(){
+            let data = InstanceConfig::load(path.join("instance.json").as_ref());
+            if let Ok(data) = data{
+                vec.push(*data);
+            }
+        }
+    }
+    
+    let vec = vec.iter().map(|x| InstanceInfo{ id: x.id.to_string(), name: x.name.to_string()}).collect();
+    
+    Ok(vec)
 }
 
 #[cfg(test)]

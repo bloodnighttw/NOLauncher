@@ -21,3 +21,8 @@ interface InstanceCreateRequest {
     version:string, // minecraft version
     mod_version:string | null // mod loader version, vanilla is None
 }
+
+interface InstanceInfo{
+    id:string,
+    name:string
+}
