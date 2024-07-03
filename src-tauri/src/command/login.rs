@@ -1,7 +1,6 @@
 use crate::utils::minecraft::auth::{AuthFlow, MinecraftAuthError, MinecraftAuthStep, SafeAccountList};
 use log::warn;
 use serde_json::json;
-use std::sync::Arc;
 use tauri::{AppHandle, State};
 use crate::utils::config::Storage;
 
