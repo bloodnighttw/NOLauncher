@@ -22,19 +22,28 @@ function InstanceItem(props:InstanceProp) {
         navigate("/instance/"+props.instanceId);
     }
 
-    return <div className="flex flex-col select-all" onDoubleClick={doubleClickToInstance}>
-        <div className="w-20 h-20 mx-2 rounded-md">
-            <img src={props.img} className="w-20 h-20 rounded-md object-cover"></img>
+    const style = {
+        backgroundImage:`url("${props.img}")`,
+        backgroundSize: "cover"
+    }
+
+    return <div className="flex flex-col duration-200" onDoubleClick={doubleClickToInstance}>
+        <div className="w-40 h-20 rounded-md duration-200 relative">
+            {/*<img src={props.img} className="w-40 h-20 rounded-md object-cover" title={props.text}/>*/}
+            <div className="w-full h-full items-center rounded-md absolute" style={style}/>
+            <div className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-0 hover:opacity-100 hover:bg-opacity-50 duration-200 flex">
+                <button className="m-auto btn btn-ghost btn-sm" onClick={()=>console.log("here i am!")}>Launch</button> {/*fix later*/}
+            </div>
         </div>
-        <div className="text-center text-md object-full w-24 h-12 text-ellipsis overflow-hidden leading-4">
-            {props.text}
+        <div className="text-center text-md  w-40 overflow-hidden truncate">
+        {props.text}
         </div>
     </div>
 }
 
 function InstanceList (props: Props) {
     return (
-        <div className="flex flex-wrap gap-4 p-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 p-4">
             {props.children}
         </div>
     )
@@ -48,15 +57,15 @@ function AddInstance() {
     }
 
     return (
-        <div className="flex flex-col select-all" onDoubleClick={doubleClickToCreate}>
-            <div className="w-20 h-20 mx-2 rounded-md">
+        <div className="flex flex-col active:scale-95 duration-200" onDoubleClick={doubleClickToCreate}>
+            <div className="w-40 h-20 rounded-md">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5}
-                     stroke="currentColor" className="w-16 h-16 m-2 duration-200 text-gray-600 hover:text-gray-900">
+                     stroke="currentColor" className="w-40 h-16 duration-200 text-gray-900">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
             </div>
-            <div className="text-center text-md object-full w-24 h-12 text-ellipsis overflow-hidden leading-4">
-                Add Instance
+            <div className="text-center text-md object-full w-40 h-12 text-ellipsis overflow-hidden leading-4">
+                New Instance
             </div>
         </div>
     );
