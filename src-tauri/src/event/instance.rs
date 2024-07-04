@@ -3,6 +3,7 @@ use crate::utils::minecraft::instance::{SafeInstanceStatus, Status};
 
 #[derive(Clone, serde::Serialize)]
 struct StatusPayload {
+    #[serde(flatten)]
     pub status: Status
 }
 
