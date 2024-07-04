@@ -1,8 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {invoke} from "@tauri-apps/api/core";
+import {listen} from "@tauri-apps/api/event";
 
-
+interface StatusCoverProp{
+    id:string
+}
 
 interface InstanceProp {
     img: string,
@@ -14,16 +17,86 @@ interface Props {
     children?: React.ReactNode,
 }
 
-function InstanceItem(props:InstanceProp) {
+function StatusCover(prop:StatusCoverProp) {
+
+    const [status,setStatus] = useState<InstanceStatusChange>({now: undefined, total: undefined, type: "Stopped"})
+
+    useEffect(() => {
+        let eventName = "instance_status_update:" + prop.id
+        let unlistenPromise = listen<InstanceStatusChange>(eventName, (res) => setStatus(res.payload))
+
+        return () => { // clean up
+            unlistenPromise.then((unlisten) => unlisten()).catch(console.error)
+        }
+    },[setStatus])
+
+    const preparing = <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center duration-200">
+        <div className="flex flex-row">
+            <span className="flex loading loading-spinner loading-xs p-2"></span>
+        </div>
+        <div className="">preparing</div>
+    </div>
+
+    const running = <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
+        <div className="flex flex-row">
+            <span className="flex loading loading-spinner loading-xs p-2"></span>
+        </div>
+        <div className="">running</div>
+    </div>
+
+    const stopeed = <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-0 hover:opacity-100 hover:bg-opacity-50 duration-200 flex flex-col justify-center items-center">
+        <button className="btn btn-ghost btn-sm"
+                onClick={() => invoke("launch_game", {id: prop.id})}>Launch
+        </button>
+    </div>
+
+    const failed = <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-0 hover:opacity-100 hover:bg-opacity-50 duration-200 flex flex-col justify-center items-center border-2 border-error">
+        <button className="btn btn-ghost btn-sm"
+                onClick={() => invoke("launch_game", {id: prop.id})}>Try Launch
+        </button>
+    </div>
+
+    const downloading = (now:number,total:number) => <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
+        <div className="">download</div>
+        <progress className="progress w-24" value={now} max={total}></progress>
+    </div>
+
+    const checking = (now:number,total:number) => <div
+        className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
+        <div className="">checking</div>
+        <progress className="progress w-24" value={now} max={total}></progress>
+    </div>
+
+    const match = (type:InstanceStatusChange)=>{
+        switch (type.type){
+            case "Checking": return checking(type.now!,type.total!)
+            case "Downloading": return downloading(type.now!,type.total!)
+            case "Failed":return failed
+            case "Preparing":return preparing
+            case "Running":return running
+            case "Stopped":return stopeed
+        }
+    }
+
+    return match(status)
+
+}
+
+function InstanceItem(props: InstanceProp) {
 
     const navigate = useNavigate();
 
     const doubleClickToInstance = () => {
-        navigate("/instance/"+props.instanceId);
+        navigate("/instance/" + props.instanceId);
     }
 
     const style = {
-        backgroundImage:`url("${props.img}")`,
+        backgroundImage: `url("${props.img}")`,
         backgroundSize: "cover"
     }
 
@@ -31,9 +104,7 @@ function InstanceItem(props:InstanceProp) {
         <div className="w-40 h-20 rounded-md duration-200 relative">
             {/*<img src={props.img} className="w-40 h-20 rounded-md object-cover" title={props.text}/>*/}
             <div className="w-full h-full items-center rounded-md absolute" style={style}/>
-            <div className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-0 hover:opacity-100 hover:bg-opacity-50 duration-200 flex">
-                <button className="m-auto btn btn-ghost btn-sm" onClick={()=>invoke("launch_game",{id:props.instanceId})}>Launch</button> {/*fix later*/}
-            </div>
+            <StatusCover id={props.instanceId}/>
         </div>
         <div className="text-center text-md  w-40 overflow-hidden truncate">
         {props.text}
