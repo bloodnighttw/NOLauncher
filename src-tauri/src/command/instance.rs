@@ -306,6 +306,7 @@ pub async fn launch_game(
     let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
     let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
     
+    // TODO: 1. if running or downloading return from start! 2. make running contain variable about minecraft process. 3. make each step independent as a function.
 
     {   // we are going to prepare the file we need.
         let mut map = map.write().await;
@@ -345,12 +346,15 @@ pub async fn launch_game(
 
         {
             let mut join_set = joinset.lock().await;
-            
+            let sem = Arc::new(tokio::sync::Semaphore::new(10));
+
             for i in need_download{
                 let move_ai64 = ai64.clone();
                 let appclone = app.clone();
                 let id = id.clone();
+                let permit = Arc::clone(&sem).acquire_owned().await;
                 join_set.spawn(async move {
+                    let _permit = permit;
                     i.download_file(move_ai64,&id,&appclone).await?;
                     Ok(())
                 });
@@ -368,6 +372,15 @@ pub async fn launch_game(
     }
     
     Ok(Vec::default())
+}
+
+#[tauri::command]
+pub async fn trigger_instance_update_event(
+    id:String,
+    app:&AppHandle
+) -> CommandResult<()>{
+    instance_status_update(&id,&app).await;
+    Ok(())
 }
 
 #[cfg(test)]
