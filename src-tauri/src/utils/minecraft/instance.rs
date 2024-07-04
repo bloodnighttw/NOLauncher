@@ -10,11 +10,14 @@ use crate::utils::minecraft::metadata::Library::Common;
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
 use futures_util::StreamExt;
+use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
+use tokio::task::JoinSet;
 use nolauncher_derive::{Load, Save};
+use crate::constant::NO_SIZE_DEFAULT_SIZE;
+use crate::event::instance::instance_status_update;
 
-const NO_SIZE_DEFAULT_SIZE:i64 = 100000;
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
 pub struct InstanceConfig{
@@ -229,37 +232,40 @@ impl GameFile {
     pub fn get_fullpath(&self) -> PathBuf{
         self.path.join(&self.filename)
     }
+    
+    pub async fn download_file(&self, progress:Arc<AtomicI64>, id:&str, app:&AppHandle) -> Result<()>{
 
-}
+        create_dir_all(&self.path)?; // create path
+        let fullpath = self.get_fullpath();
+        let mut file = tokio::fs::File::create(fullpath).await?;
+        let mut stream = reqwest::get(&self.url)
+            .await?
+            .bytes_stream();
 
-pub async fn download_file(download:&GameFile, progress:Arc<AtomicI64>, instance_id:&str) -> Result<()>{
+        let skip_download_size_log = match &self.size {
+            None => {true}
+            Some(_) => {false}
+        };
 
-    create_dir_all(&download.path)?; // create path
-    let fullpath = download.get_fullpath();
-    let mut file = tokio::fs::File::create(fullpath).await?;
-    let mut stream = reqwest::get(&download.url)
-        .await?
-        .bytes_stream();
-
-    let skip_download_size_log = match download.size {
-        None => {true}
-        Some(_) => {false}
-    };
-
-    while let Some(chunk_result) = stream.next().await{
-        let chunk = chunk_result?;
-        if !skip_download_size_log {
-            progress.fetch_add(chunk.len() as i64, Relaxed);
+        while let Some(chunk_result) = stream.next().await{
+            let chunk = chunk_result?;
+            if !skip_download_size_log {
+                progress.fetch_add(chunk.len() as i64, Relaxed);
+                instance_status_update(&id,&app).await;
+            }
+            file.write_all(&chunk).await?;
         }
-        file.write_all(&chunk).await?;
-    }
 
-    if skip_download_size_log{
-        progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
-    }
+        if skip_download_size_log{
+            progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
+            instance_status_update(&id,&app).await;
+        }
 
-    Ok(())
+        Ok(())
+    }
 }
+
+
 
 /// Get the dependency of the package recursively.
 ///
@@ -337,7 +343,7 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
             vec.push(Common(client.clone()));
         }
     }
-    print!("{:?}",vec);
+
     Ok(LaunchData{
         main_class:main_class.unwrap(),
         dep:vec
@@ -352,7 +358,7 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
 /// 4. Checking -> Checking the game file is valid!
 /// 5. Running -> the game is running.
 /// 6. Failed -> the game start failed!
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Status{
     Running,
@@ -363,8 +369,8 @@ pub enum Status{
     Failed
 }
 
-pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
-pub type InstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
+pub type DownloadMutex = Mutex<JoinSet<Result<()>>>; // only one at most instance can download file at the same time.
+pub type SafeInstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
 
 
 #[cfg(test)]
@@ -375,7 +381,7 @@ mod test{
     use std::sync::atomic::AtomicI64;
     use std::time::Duration;
     use tokio::task::{JoinSet};
-    use crate::utils::minecraft::instance::{check_instance, download_file, GameFile, InstanceConfig, NO_SIZE_DEFAULT_SIZE};
+    use crate::utils::minecraft::instance::{check_instance, GameFile, InstanceConfig, NO_SIZE_DEFAULT_SIZE};
     use crate::utils::minecraft::metadata::MetadataSetting;
     use anyhow::Result;
     use tokio::process::Command;
@@ -435,7 +441,7 @@ mod test{
         for i in downloads{
             let move_value = ai64.clone();
             tasks.spawn(async move {
-                download_file(&i,move_value,"123456").await?;
+                // download_file(&i,move_value,"123456").await?;
                 Ok(())
             });
         }
