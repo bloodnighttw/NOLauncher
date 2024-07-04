@@ -344,6 +344,14 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
     })
 }
 
+
+/// the status of starting game
+/// 1. Stopped -> the game is not running
+/// 2. Preparing -> fetching metadata and get launch information from it.
+/// 3. Downloading -> Downloading the game file instance need.
+/// 4. Checking -> Checking the game file is valid!
+/// 5. Running -> the game is running.
+/// 6. Failed -> the game start failed!
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Status{
@@ -419,7 +427,7 @@ mod test{
             .filter(|x| !x.get_fullpath().exists()) // find the file not exists on pc
             .map(|x|x.clone()) // bring borrow into own
             .collect();
-        
+
         let _total_size:i64 = downloads.iter()
             .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
             .sum(); // the total file size need to download.
@@ -434,7 +442,7 @@ mod test{
 
 
         println!("Started {} tasks. Waiting...", tasks.len());
-        
+
         while let Some(res) = tasks.join_next().await{
             if let Ok(Ok(res)) = res{
             }else{
