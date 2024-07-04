@@ -32,7 +32,7 @@ function InstanceItem(props:InstanceProp) {
             {/*<img src={props.img} className="w-40 h-20 rounded-md object-cover" title={props.text}/>*/}
             <div className="w-full h-full items-center rounded-md absolute" style={style}/>
             <div className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-0 hover:opacity-100 hover:bg-opacity-50 duration-200 flex">
-                <button className="m-auto btn btn-ghost btn-sm" onClick={()=>console.log("here i am!")}>Launch</button> {/*fix later*/}
+                <button className="m-auto btn btn-ghost btn-sm" onClick={()=>invoke("launch_game",{id:props.instanceId})}>Launch</button> {/*fix later*/}
             </div>
         </div>
         <div className="text-center text-md  w-40 overflow-hidden truncate">

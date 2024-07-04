@@ -1,13 +1,18 @@
 use std::collections::HashMap;
-use std::fs::read_dir;
+use std::fs::{metadata, read_dir};
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicI64;
 use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
+use tokio::fs::create_dir_all;
+use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
+use crate::event::instance::instance_status_update;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::InstanceConfig;
+use crate::utils::minecraft::instance::{check_instance, DownloadMutex, GameFile, InstanceConfig, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
@@ -229,7 +234,7 @@ pub async fn create_instance(
 
     let dep ={
         let config = config.read().await;
-        let cached = app.path().cache_dir()?;
+        let cached = app.path().app_cache_dir()?;
         handle_dep(&uid, &version, p_version, &config, &cached).await
     };
 
@@ -288,6 +293,81 @@ pub async  fn list_instance(
     let vec = vec.iter().map(|x| InstanceInfo{ id: x.id.to_string(), name: x.name.to_string()}).collect();
     
     Ok(vec)
+}
+
+#[tauri::command]
+pub async fn launch_game(
+    id:String,
+    app: AppHandle,
+    map: State<'_, SafeInstanceStatus>,
+    config: State<'_,SafeNoLauncherConfig>,
+    joinset: State<'_,DownloadMutex>
+) -> CommandResult<Vec<InstanceInfo>>{
+    let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
+    let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
+    
+
+    {   // we are going to prepare the file we need.
+        let mut map = map.write().await;
+        map.insert(id.clone(),Status::Preparing);
+    }
+
+    instance_status_update(&id,&app).await;
+    
+    let launch_data = {   // prepare
+        let metadata = &config.read().await.metadata_setting;
+        check_instance(&metadata,&instance_config,app.path().app_cache_dir()?).await?
+    };
+    
+    let libpath = LIB_PATH.to_path(&app)?;
+    create_dir_all(libpath.clone()).await?;
+    
+    let game_files = launch_data.get_download_entities(libpath);
+    
+    let need_download:Vec<GameFile> = game_files.iter()
+        .filter(|x| !x.get_fullpath().exists())
+        .map(|x|x.clone())
+        .collect();
+    
+    let total_size:i64 = need_download.iter()
+        .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
+        .sum();
+    
+    if total_size > 0 {
+        let ai64: Arc<AtomicI64> = AtomicI64::default().into();
+        let status = Status::Downloading { now: ai64.clone(), total: total_size };
+
+        {
+            let mut map = map.write().await;
+            map.insert(id.clone(), status);
+        }
+        instance_status_update(&id, &app).await;
+
+        {
+            let mut join_set = joinset.lock().await;
+            
+            for i in need_download{
+                let move_ai64 = ai64.clone();
+                let appclone = app.clone();
+                let id = id.clone();
+                join_set.spawn(async move {
+                    i.download_file(move_ai64,&id,&appclone).await?;
+                    Ok(())
+                });
+            }
+
+            while let Some(res) = join_set.join_next().await{
+                if let Ok(_) = res{
+                }else{
+                    println!("{:?}",res);
+                }
+            }
+            
+        }
+        
+    }
+    
+    Ok(Vec::default())
 }
 
 #[cfg(test)]
