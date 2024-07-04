@@ -1,12 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use std::path:: PathBuf;
+use std::fs::create_dir_all;
+use std::path::{PathBuf};
+use std::sync::{Arc};
+use std::sync::atomic::{AtomicI64};
+use std::sync::atomic::Ordering::Relaxed;
 use serde::{Deserialize, Serialize};
 use crate::utils::minecraft::metadata::{decode_hex, equal_my_platform, Library, MetadataSetting, rules_analyzer, string2platform};
 use crate::utils::minecraft::metadata::Library::Common;
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
 
+const NO_SIZE_DEFAULT_SIZE:i64 = 100000;
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
 pub struct InstanceConfig{
@@ -41,12 +49,12 @@ pub struct LaunchData{
 }
 
 impl LaunchData {
-    pub fn get_download_entities(&self,lib_path:PathBuf) -> Vec<DownloadEntity>{
+    pub fn get_download_entities(&self,lib_path:PathBuf) -> Vec<GameFile>{
         let mut downloads = vec![];
 
         for i in &self.dep{
             downloads.append(
-                &mut DownloadEntity::from(i.clone(), lib_path.clone())
+                &mut GameFile::from(i.clone(), lib_path.clone())
             )
         }// correct
 
@@ -102,17 +110,17 @@ impl LaunchData {
 }
 
 #[derive(Debug,Clone,PartialEq,Hash,Eq)]
-pub struct DownloadEntity{
+pub struct GameFile {
     pub path:PathBuf,
     pub filename:String,
     pub url:String,
-    pub lib_type: LibType
-
+    pub lib_type: LibType,
+    pub size:Option<i64>
 }
 
 
 
-impl DownloadEntity{
+impl GameFile {
 
     /// The forge MCP package has version name XXX@ZIP, we need to store under version name XXX.
     ///
@@ -128,7 +136,7 @@ impl DownloadEntity{
         }
     }
 
-    pub fn from(lib:Library,mut path:PathBuf) -> Vec<DownloadEntity>{
+    pub fn from(lib:Library,mut path:PathBuf) -> Vec<GameFile>{
         match lib {
             Common(lib) => {
                 let mut spilt = lib.name.splitn(4,":");
@@ -158,11 +166,12 @@ impl DownloadEntity{
                     let filename = lib.url.rsplit_once("/").unwrap().1.to_string();
 
                     vec.push(
-                        DownloadEntity{
+                        GameFile {
                             path:path.clone(),
                             filename,
                             url: lib.url,
-                            lib_type:lib_type.clone()
+                            lib_type:lib_type.clone(),
+                            size:Some(lib.size)
                         }
                     )
                 }
@@ -173,11 +182,12 @@ impl DownloadEntity{
                         let filename = v.url.rsplit_once('/').unwrap().1.to_string();
 
                         vec.push(
-                            DownloadEntity{
+                            GameFile {
                                 path:path.clone(),
                                 filename,
                                 url: v.url,
-                                lib_type:lib_type.clone()
+                                lib_type:lib_type.clone(),
+                                size:Some(v.size)
                             }
                         )
                     }
@@ -204,17 +214,51 @@ impl DownloadEntity{
                 let url = format!("{}/{}/{}/{}/{}",maven.url,orgs.replace('.',"/"),pkg,version,filename);
 
                 vec![
-                    DownloadEntity{
+                    GameFile {
                         path,
                         filename,
                         url,
-                        lib_type: LibType::Lib
+                        lib_type: LibType::Lib,
+                        size:None
                     }
                 ]
             }
         }
     }
+    
+    pub fn get_fullpath(&self) -> PathBuf{
+        self.path.join(&self.filename)
+    }
 
+}
+
+pub async fn download_file(download:&GameFile, progress:Arc<AtomicI64>, instance_id:&str) -> Result<()>{
+
+    create_dir_all(&download.path)?; // create path
+    let fullpath = download.get_fullpath();
+    let mut file = tokio::fs::File::create(fullpath).await?;
+    let mut stream = reqwest::get(&download.url)
+        .await?
+        .bytes_stream();
+
+    let skip_download_size_log = match download.size {
+        None => {true}
+        Some(_) => {false}
+    };
+
+    while let Some(chunk_result) = stream.next().await{
+        let chunk = chunk_result?;
+        if !skip_download_size_log {
+            progress.fetch_add(chunk.len() as i64, Relaxed);
+        }
+        file.write_all(&chunk).await?;
+    }
+
+    if skip_download_size_log{
+        progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
+    }
+
+    Ok(())
 }
 
 /// Get the dependency of the package recursively.
@@ -300,19 +344,36 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
     })
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Status{
+    Running,
+    Preparing,
+    Checking{now:Arc<AtomicI64>,total:i64}, // (the file amount has been checked, total)
+    Downloading{now:Arc<AtomicI64>,total:i64}, // (the amount of data has been download, total)
+    Stopped,
+    Failed
+}
+
+pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
+pub type InstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
 
 
 #[cfg(test)]
 mod test{
     use std::collections::{HashMap};
     use std::path::PathBuf;
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicI64;
+    use std::time::Duration;
     use tokio::task::{JoinSet};
-    use crate::utils::minecraft::instance::{check_instance, DownloadEntity, InstanceConfig};
+    use crate::utils::minecraft::instance::{check_instance, download_file, GameFile, InstanceConfig, NO_SIZE_DEFAULT_SIZE};
     use crate::utils::minecraft::metadata::MetadataSetting;
     use anyhow::Result;
+    use tokio::process::Command;
+    use tokio::time;
 
-
-    fn vec2hashmap(vec:Vec<(&str,&str)>) -> HashMap<String,String> {
+    fn vec2hashmap(vec:Vec<(&str, &str)>) -> HashMap<String,String> {
         let mut map = HashMap::new();
         for (key,value) in vec.iter(){
             map.insert(key.to_string(),value.to_string());
@@ -344,56 +405,66 @@ mod test{
         
         let path:PathBuf = "./test".into();
         let cached = path.join("cached");
-        let lib_path = path.join("library");
+        let lib_path = path.join("libraries");
         let launch_data = check_instance(&metadata, &instance, cached).await.unwrap();
         
-        let mut tasks: JoinSet<Result<DownloadEntity>> = JoinSet::new();
-        let downloads = launch_data.get_download_entities(lib_path.clone());
+        let mut tasks: JoinSet<Result<()>> = JoinSet::new();
+        let game_file = launch_data.get_download_entities(lib_path.clone());
         
         tokio::fs::create_dir_all(lib_path.clone()).await.unwrap();
+
+        let ai64:Arc<AtomicI64>= AtomicI64::new(0).into();
+
+        let downloads:Vec<GameFile> = game_file.iter()
+            .filter(|x| !x.get_fullpath().exists()) // find the file not exists on pc
+            .map(|x|x.clone()) // bring borrow into own
+            .collect();
         
+        let _total_size:i64 = downloads.iter()
+            .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
+            .sum(); // the total file size need to download.
+
         for i in downloads{
-            println!("{:?}",i);
+            let move_value = ai64.clone();
             tasks.spawn(async move {
-                let res = reqwest::get(i.clone().url).await?;
-                tokio::fs::create_dir_all(i.clone().path).await.unwrap();
-                tokio::fs::write(i.clone().path.join(i.filename.clone()),res.bytes().await?).await?;
-                Ok(i)
+                download_file(&i,move_value,"123456").await?;
+                Ok(())
             });
         }
-        
-        
+
+
         println!("Started {} tasks. Waiting...", tasks.len());
-        let mut vec = Vec::default();
+        
         while let Some(res) = tasks.join_next().await{
             if let Ok(Ok(res)) = res{
-                let path = res.path.join(res.filename);
-                vec.push(tokio::fs::canonicalize(path).await.unwrap().to_str().unwrap().to_string());
             }else{
                 println!("{:?}",res);
             }
         }
+
+        let list = game_file.iter()
+            .map(|x|x.get_fullpath().to_str().unwrap().to_string())
+            .collect::<Vec<String>>()
+            .join(":");
         
-        let list = vec.join(":");
-        
-        // let time_ = Duration::from_secs(30);
-        // 
-        // let _:Result<(),()> = time::timeout(time_,async {
-        // 
-        //     let mut child = Command::new("java")
-        //         .arg("-cp")
-        //         .arg(list.clone())
-        //         .arg(launch_data.main_class)
-        //         .arg("--accessToken")
-        //         .arg("nothing here")
-        //         .arg("--version")
-        //         .arg("test")
-        //         .spawn()
-        //         .expect("this should work");
-        //     
-        //     let _ = child.wait().await.unwrap();
-        //     Err(())
-        // }).await.unwrap_or(Ok(()));// timeout error is allowed for testing!
+        let time_ = Duration::from_secs(30);
+
+        let _:Result<(),()> = time::timeout(time_,async {
+
+            let mut child = Command::new("java")
+                .arg("-cp")
+                .arg(list.clone())
+                .arg(launch_data.main_class)
+                .arg("--accessToken")
+                .arg("nothing here")
+                .arg("--version")
+                .arg("test")
+                .spawn()
+                .expect("this should work");
+
+            let _ = child.wait().await.unwrap();
+            Err(())
+        }).await.unwrap_or(Ok(()));// timeout error is allowed for testing!
         
         println!("{:?}",list);
         tokio::fs::remove_dir_all(path).await.unwrap();

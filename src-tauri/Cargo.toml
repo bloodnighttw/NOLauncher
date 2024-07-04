@@ -15,7 +15,7 @@ tauri = { version = "2.0.0-beta", features = [] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 tokio = { version = "1.25.0", features = ["full"] }
-reqwest = { version = "0.12.4", features = ["json", "blocking"] }
+reqwest = { version = "0.12.4", features = ["json","stream"] }
 anyhow = "1.0.82"
 thiserror = "1.0.59"
 log = "0.4.21"
@@ -29,6 +29,7 @@ async-recursion = "1.1.1"
 rand = "0.7.3"
 uuid = { version = "1.8.0", features = ["v4"] }
 nolauncher-derive = {path = "../nolauncher-derive"}
+futures-util = "0.3.30"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
