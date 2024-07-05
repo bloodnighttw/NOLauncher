@@ -17,7 +17,7 @@ use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
 use anyhow::Result;
-
+use tokio::task::JoinSet;
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -358,16 +358,15 @@ async fn download(
     instance_status_update(&id, &app).await;
 
     {
-        let mut join_set = join_set.lock().await;
-        let sem = Arc::new(tokio::sync::Semaphore::new(10));
+        let _ = join_set.lock().await;
+        let mut join_set:JoinSet<Result<()>> = JoinSet::new();
 
         for i in need_download{
             let move_ai64 = ai64.clone();
             let app_clone = app.clone();
             let id = id.to_string();
-            let permit = Arc::clone(&sem).acquire_owned().await;
+            
             join_set.spawn(async move {
-                let _permit = permit;
                 i.download_file(move_ai64,&id,&app_clone).await?;
                 Ok(())
             });

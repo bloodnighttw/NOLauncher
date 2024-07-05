@@ -10,8 +10,7 @@ use crate::command::user::{get_current_user, get_users, logout_user, set_current
 use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
 use tauri::Manager;
-use tokio::sync::RwLock;
-use tokio::task::JoinSet;
+use tokio::sync::{Mutex, RwLock};
 use crate::command::instance::{create_instance, list_instance, list_versions, launch_game};
 use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
 use crate::utils::minecraft::instance::{DownloadMutex, SafeInstanceStatus};
@@ -59,7 +58,7 @@ fn main() {
     #[cfg(debug_assertions)]
     let builder = builder.plugin(tauri_plugin_devtools::init());
     let instance_status:SafeInstanceStatus = HashMap::new().into();
-    let joinmutex: DownloadMutex = JoinSet::new().into();
+    let joinmutex: DownloadMutex = Mutex::new(());
 
 
     builder

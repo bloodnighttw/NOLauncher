@@ -12,8 +12,8 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
+use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock};
-use tokio::task::JoinSet;
 use nolauncher_derive::{Load, Save};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
 use crate::event::instance::instance_status_update;
@@ -112,6 +112,7 @@ impl LaunchData {
     }
 }
 
+// TODO: Add Type Field(Client, Library, Installer, Asset, etc.)
 #[derive(Debug,Clone,PartialEq,Hash,Eq)]
 pub struct GameFile {
     pub path:PathBuf,
@@ -251,11 +252,13 @@ impl GameFile {
             let chunk = chunk_result?;
             if !skip_download_size_log {
                 progress.fetch_add(chunk.len() as i64, Relaxed);
-                instance_status_update(&id,&app).await;
+                // instance_status_update(&id,&app.clone()).await; //deadlock happened here.
             }
             file.write_all(&chunk).await?;
         }
 
+        instance_status_update(&id,&app).await;
+        
         if skip_download_size_log{
             progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
             instance_status_update(&id,&app).await;
@@ -358,10 +361,10 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
 /// 4. Checking -> Checking the game file is valid!
 /// 5. Running -> the game is running.
 /// 6. Failed -> the game start failed!
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum Status{
-    Running,
+    Running(#[serde(skip)] Arc<Child>),
     Preparing,
     Checking{now:Arc<AtomicI64>,total:i64}, // (the file amount has been checked, total)
     Downloading{now:Arc<AtomicI64>,total:i64}, // (the amount of data has been download, total)
@@ -369,7 +372,7 @@ pub enum Status{
     Failed{details:String}
 }
 
-pub type DownloadMutex = Mutex<JoinSet<Result<()>>>; // only one at most instance can download file at the same time.
+pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
 pub type SafeInstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
 
 
