@@ -7,7 +7,7 @@ use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use tauri::{App, AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::fs::create_dir_all;
 use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
@@ -304,7 +304,7 @@ async fn prepare(
     app: &AppHandle,
     map: &SafeInstanceStatus,
     config: &SafeNoLauncherConfig,
-) -> Result<(Vec<GameFile>,Vec<GameFile>,LaunchData)> // return (the game file need to launch
+) -> Result<(Vec<GameFile>,LaunchData)> // return (the game file need to launch
 {
     {   // we are going to prepare the file we need.
         let mut map = map.write().await;
@@ -326,12 +326,7 @@ async fn prepare(
 
     let game_files = launch_data.get_download_entities(libpath);
 
-    let need_download:Vec<GameFile> = game_files.iter()
-        .filter(|x| !x.get_fullpath().exists())
-        .map(|x|x.clone())
-        .collect();
-
-    Ok((game_files,need_download,launch_data))
+    Ok((game_files,launch_data))
 }
 
 async fn download(
@@ -339,12 +334,13 @@ async fn download(
     need_download:Vec<GameFile>,
     map:&SafeInstanceStatus,
     app:&AppHandle,
-    join_set:&DownloadMutex
 ) -> CommandResult<()>
 {
+    
     if need_download.len() <= 0{
         return Ok(())
     }
+
 
     let ai64: Arc<AtomicI64> = AtomicI64::default().into();
     let total_size = need_download.iter()
@@ -361,7 +357,6 @@ async fn download(
     instance_status_update(&id, &app).await;
 
     {
-        let _ = join_set.lock().await;
         let mut join_set:JoinSet<Result<()>> = JoinSet::new();
 
         for i in need_download{
@@ -450,7 +445,7 @@ pub async fn launch_game(
     app: AppHandle,
     map: State<'_, SafeInstanceStatus>,
     config: State<'_,SafeNoLauncherConfig>,
-    joinset: State<'_,DownloadMutex>
+    lock: State<'_,DownloadMutex>
 ) -> CommandResult<()>{
 
     {
@@ -469,21 +464,29 @@ pub async fn launch_game(
 
     let prepare_result = prepare(&id, &app, &map, &config).await;
 
-    let (game_files,need_download,launch_data) = match prepare_result {
-        Ok((game,need,launch_data)) => (game,need,launch_data),
+    let (game_files,launch_data) = match prepare_result {
+        Ok((game,launch_data)) => (game,launch_data),
         Err(details) => {
             failed(&id,&app,details.to_string(),&map).await;
             return Ok(())
         }
     };
 
-    let download_result = download(&id,need_download,&map,&app,&joinset).await;
+    {
+        let _lock = lock.lock().await;
+        let need_download:Vec<GameFile> = game_files.iter()
+            .filter(|x| !x.get_fullpath().exists())
+            .map(|x|x.clone())
+            .collect();
+        
+        let download_result = download(&id, need_download, &map, &app).await;
 
-    match download_result {
-        Ok(_) => {}
-        Err(details) => {
-            failed(&id,&app,details.to_string(),&map).await;
-            return Ok(())
+        match download_result {
+            Ok(_) => {}
+            Err(details) => {
+                failed(&id, &app, details.to_string(), &map).await;
+                return Ok(());
+            }
         }
     }
 
