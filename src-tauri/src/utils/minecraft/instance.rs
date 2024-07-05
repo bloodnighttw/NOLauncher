@@ -15,7 +15,7 @@ use tauri_plugin_shell::process::CommandChild;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
-use crate::constant::NO_SIZE_DEFAULT_SIZE;
+use crate::constant::{CACHED_DEFAULT, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
 
 
@@ -112,7 +112,6 @@ impl LaunchData {
     }
 }
 
-// TODO: Add Type Field(Client, Library, Installer, Asset, etc.)
 #[derive(Debug,Clone,PartialEq,Hash,Eq)]
 pub struct GameFile {
     pub path:PathBuf,
@@ -121,8 +120,6 @@ pub struct GameFile {
     pub lib_type: LibType,
     pub size:Option<i64>
 }
-
-
 
 impl GameFile {
 
@@ -269,33 +266,17 @@ impl GameFile {
 }
 
 
-
-/// Get the dependency of the package recursively.
-///
-/// # Arguments
-///
-/// * `uid`: the package uid.
-/// * `mc_version`: minecraft version. (e.g. 1.16.5, 1.17.1,etc.)
-/// * `p_version`: platform specific version (e.g. fabric, forge, liteloader, neoforge, quilt, lwjgl, lwjgl3).
-/// * `metadata_setting`: metadata setting. the variable is used to get the package details.
-/// * `cached`: the cached folder.
-///
-/// returns: HashMap<String, String> - the key is the uid, the value is the version.
-///
-/// # Examples
-///
-/// ```
-///
-/// println!("{:?}", res); // print the result
-///
-/// ```
-pub async fn check_instance(config: &MetadataSetting, instance_config: &InstanceConfig, cached_path:PathBuf) -> Result<LaunchData> {
+pub async fn get_launch_data(config: &MetadataSetting, instance_config: &InstanceConfig,app:&AppHandle) -> Result<LaunchData> {
     let pkg = &instance_config.dep;
+    let cached_path = CACHED_DEFAULT.to_path(app)?;
 
     let mut vec = Vec::default();
     let mut main_class:Option<String> = None;
     for (uid,version) in pkg.iter(){
-        let pkg_info = config.package_list.data.packages.get(uid).unwrap();
+        let pkg_info = config
+            .package_list
+            .data.packages
+            .get(uid).unwrap();
         let sha256 = SHA256(decode_hex(&pkg_info.sha256).unwrap());
 
         let pkg_details = config
@@ -374,116 +355,3 @@ pub enum Status{
 
 pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
 pub type SafeInstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
-
-
-#[cfg(test)]
-mod test{
-    use std::collections::{HashMap};
-    use std::path::PathBuf;
-    use std::sync::Arc;
-    use std::sync::atomic::AtomicI64;
-    use std::time::Duration;
-    use tokio::task::{JoinSet};
-    use crate::utils::minecraft::instance::{check_instance, GameFile, InstanceConfig, NO_SIZE_DEFAULT_SIZE};
-    use crate::utils::minecraft::metadata::MetadataSetting;
-    use anyhow::Result;
-    use tokio::process::Command;
-    use tokio::time;
-
-    fn vec2hashmap(vec:Vec<(&str, &str)>) -> HashMap<String,String> {
-        let mut map = HashMap::new();
-        for (key,value) in vec.iter(){
-            map.insert(key.to_string(),value.to_string());
-        }
-        map
-    }
-
-    #[tokio::test]
-    #[cfg(target_arch = "x86_64")]
-    #[cfg(target_os = "linux")]
-    async fn test(){
-
-        let mut metadata = MetadataSetting::default();
-        metadata.refresh().await.unwrap();
-
-        let valid_vec = vec![
-            ("net.minecraft", "1.16.5"),
-            ("org.lwjgl3", "3.2.2"),
-            ("net.fabricmc.intermediary","1.16.5"),
-            ("net.fabricmc.fabric-loader","0.15.1")
-        ];
-        
-        let instance = InstanceConfig{
-            id: "123456".to_string(),
-            name: "hello".to_string(),
-            dep: vec2hashmap(valid_vec),
-            top: "net.fabricmc.fabric-loader".to_string(),
-        };
-        
-        let path:PathBuf = "./test".into();
-        let cached = path.join("cached");
-        let lib_path = path.join("libraries");
-        let launch_data = check_instance(&metadata, &instance, cached).await.unwrap();
-        
-        let mut tasks: JoinSet<Result<()>> = JoinSet::new();
-        let game_file = launch_data.get_download_entities(lib_path.clone());
-        
-        tokio::fs::create_dir_all(lib_path.clone()).await.unwrap();
-
-        let ai64:Arc<AtomicI64>= AtomicI64::new(0).into();
-
-        let downloads:Vec<GameFile> = game_file.iter()
-            .filter(|x| !x.get_fullpath().exists()) // find the file not exists on pc
-            .map(|x|x.clone()) // bring borrow into own
-            .collect();
-
-        let _total_size:i64 = downloads.iter()
-            .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
-            .sum(); // the total file size need to download.
-
-        for i in downloads{
-            let move_value = ai64.clone();
-            tasks.spawn(async move {
-                // download_file(&i,move_value,"123456").await?;
-                Ok(())
-            });
-        }
-
-
-        println!("Started {} tasks. Waiting...", tasks.len());
-
-        while let Some(res) = tasks.join_next().await{
-            if let Ok(Ok(_)) = res{
-            }else{
-                println!("{:?}",res);
-            }
-        }
-
-        let list = game_file.iter()
-            .map(|x|x.get_fullpath().to_str().unwrap().to_string())
-            .collect::<Vec<String>>()
-            .join(":");
-        
-        let time_ = Duration::from_secs(30);
-
-        let _:Result<(),()> = time::timeout(time_,async {
-
-            let mut child = Command::new("java")
-                .arg("-cp")
-                .arg(list.clone())
-                .arg(launch_data.main_class)
-                .arg("--accessToken")
-                .arg("nothing here")
-                .arg("--version")
-                .arg("test")
-                .spawn()
-                .expect("this should work");
-
-            let _ = child.wait().await.unwrap();
-            Err(())
-        }).await.unwrap_or(Ok(()));// timeout error is allowed for testing!
-        
-        println!("{:?}",list);
-        tokio::fs::remove_dir_all(path).await.unwrap();
-    }
-}

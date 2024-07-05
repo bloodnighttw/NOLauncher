@@ -12,7 +12,7 @@ use tokio::fs::create_dir_all;
 use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::{check_instance, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
+use crate::utils::minecraft::instance::{get_launch_data, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
@@ -318,13 +318,13 @@ async fn prepare(
 
     let launch_data = {   // prepare
         let metadata = &config.read().await.metadata_setting;
-        check_instance(&metadata,&instance_config,app.path().app_cache_dir()?).await?
+        get_launch_data(&metadata, &instance_config, app).await?
     };
 
-    let libpath = LIB_PATH.to_path(&app)?;
-    create_dir_all(libpath.clone()).await?;
+    let lib_path = LIB_PATH.to_path(&app)?;
+    create_dir_all(lib_path.clone()).await?;
 
-    let game_files = launch_data.get_download_entities(libpath);
+    let game_files = launch_data.get_download_entities(lib_path);
 
     Ok((game_files,launch_data))
 }
@@ -438,7 +438,6 @@ async fn failed(
     instance_status_update(&id, &app).await;
 }
 
-/// this function will not response any message!
 #[tauri::command]
 pub async fn launch_game(
     id:String,
@@ -446,7 +445,8 @@ pub async fn launch_game(
     map: State<'_, SafeInstanceStatus>,
     config: State<'_,SafeNoLauncherConfig>,
     lock: State<'_,DownloadMutex>
-) -> CommandResult<()>{
+) -> CommandResult<()>
+{
 
     {
         let map = map.read().await;
