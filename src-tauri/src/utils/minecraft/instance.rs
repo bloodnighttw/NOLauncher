@@ -16,7 +16,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
 use crate::constant::{CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
-use crate::event::instance::instance_status_update;
+use crate::event::instance::{instance_status_update, progress_status_update};
 
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
@@ -56,7 +56,7 @@ impl LaunchData {
         let mut downloads = vec![];
         
         let lib_path = LIB_PATH.to_path(&app)?;
-        create_dir_all(lib_path)?;
+        create_dir_all(&lib_path)?;
 
         for i in &self.dep{
             downloads.append(
@@ -236,7 +236,7 @@ impl GameFile {
         self.path.join(&self.filename)
     }
     
-    pub async fn download_file(&self, progress:Arc<AtomicI64>, id:&str, app:&AppHandle) -> Result<()>{
+    pub async fn download_file(&self, progress:Arc<AtomicI64>, total:i64, id:&str, app:&AppHandle) -> Result<()>{
 
         create_dir_all(&self.path)?; // create path
         let fullpath = self.get_fullpath();
@@ -254,16 +254,14 @@ impl GameFile {
             let chunk = chunk_result?;
             if !skip_download_size_log {
                 progress.fetch_add(chunk.len() as i64, Relaxed);
-                // instance_status_update(&id,&app.clone()).await; //deadlock happened here.
+                progress_status_update(progress.clone(),total,&app,id).await;
             }
             file.write_all(&chunk).await?;
         }
-
-        instance_status_update(&id,&app).await;
-
+        
         if skip_download_size_log{
             progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
-            instance_status_update(&id,&app).await;
+            progress_status_update(progress.clone(),total,&app,id).await;
         }
 
         Ok(())
