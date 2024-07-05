@@ -11,8 +11,8 @@ use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
 use futures_util::StreamExt;
 use tauri::AppHandle;
+use tauri_plugin_shell::process::CommandChild;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
@@ -258,7 +258,7 @@ impl GameFile {
         }
 
         instance_status_update(&id,&app).await;
-        
+
         if skip_download_size_log{
             progress.fetch_add(NO_SIZE_DEFAULT_SIZE, Relaxed);
             instance_status_update(&id,&app).await;
@@ -364,7 +364,7 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
 #[derive(Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum Status{
-    Running(#[serde(skip)] Arc<Child>),
+    Running(#[serde(skip)] Arc<CommandChild>),
     Preparing,
     Checking{now:Arc<AtomicI64>,total:i64}, // (the file amount has been checked, total)
     Downloading{now:Arc<AtomicI64>,total:i64}, // (the amount of data has been download, total)
@@ -453,7 +453,7 @@ mod test{
         println!("Started {} tasks. Waiting...", tasks.len());
 
         while let Some(res) = tasks.join_next().await{
-            if let Ok(Ok(res)) = res{
+            if let Ok(Ok(_)) = res{
             }else{
                 println!("{:?}",res);
             }

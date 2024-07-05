@@ -12,12 +12,15 @@ use tokio::fs::create_dir_all;
 use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::{check_instance, DownloadMutex, GameFile, InstanceConfig, SafeInstanceStatus, Status};
+use crate::utils::minecraft::instance::{check_instance, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
 use anyhow::Result;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use tauri_plugin_shell::ShellExt;
 use tokio::task::JoinSet;
+use tauri::async_runtime::Receiver;
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -301,7 +304,7 @@ async fn prepare(
     app: &AppHandle,
     map: &SafeInstanceStatus,
     config: &SafeNoLauncherConfig,
-) -> Result<(Vec<GameFile>,Vec<GameFile>)> // return (the game file need to launch
+) -> Result<(Vec<GameFile>,Vec<GameFile>,LaunchData)> // return (the game file need to launch
 {
     {   // we are going to prepare the file we need.
         let mut map = map.write().await;
@@ -309,7 +312,7 @@ async fn prepare(
     }
 
     instance_status_update(&id,&app).await; // trigger event update.
-    
+
     let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
     let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
 
@@ -327,8 +330,8 @@ async fn prepare(
         .filter(|x| !x.get_fullpath().exists())
         .map(|x|x.clone())
         .collect();
-    
-    Ok((game_files,need_download))
+
+    Ok((game_files,need_download,launch_data))
 }
 
 async fn download(
@@ -365,7 +368,7 @@ async fn download(
             let move_ai64 = ai64.clone();
             let app_clone = app.clone();
             let id = id.to_string();
-            
+
             join_set.spawn(async move {
                 i.download_file(move_ai64,&id,&app_clone).await?;
                 Ok(())
@@ -382,6 +385,46 @@ async fn download(
 
         Ok(())
     }
+}
+
+async fn running(
+    id:&str,
+    game_files:Vec<GameFile>,
+    app:&AppHandle,
+    map:&SafeInstanceStatus,
+    main_class:&str
+) -> Result<Receiver<CommandEvent>>{
+
+    let list = game_files.iter()
+        .map(|x|x.get_fullpath().to_str().unwrap().to_string())
+        .collect::<Vec<String>>()
+        .join(":");// windows use ";"
+    
+    let shell = app.shell();
+    let (output,command_child)= shell
+            .command("java")
+            .arg("-cp")
+            .arg(list)
+            .arg(main_class)
+            .arg("--accessToken")
+            .arg("nothing here")
+            .arg("--version")
+            .arg("test")
+            .spawn()?;
+    
+    let command_child:Arc<CommandChild> = command_child.into();
+    
+    let status = Status::Running(command_child.clone());
+    
+    {
+        let mut map = map.write().await;
+        map.insert(id.to_string(), status);
+    }
+    
+    instance_status_update(&id, &app).await;
+    
+    
+    Ok(output)
 }
 
 async fn failed(
@@ -413,7 +456,7 @@ pub async fn launch_game(
     {
         let map = map.read().await;
         let status = map.get(&id).unwrap_or(&Status::Stopped);
-        
+
         match status {
             Status::Failed{..} | Status::Stopped{ .. } => {
                 // do nothing
@@ -423,19 +466,19 @@ pub async fn launch_game(
             }
         }
     }
-    
+
     let prepare_result = prepare(&id, &app, &map, &config).await;
-    
-    let (game_files,need_download) = match prepare_result {
-        Ok((game,need)) => (game,need),
+
+    let (game_files,need_download,launch_data) = match prepare_result {
+        Ok((game,need,launch_data)) => (game,need,launch_data),
         Err(details) => {
             failed(&id,&app,details.to_string(),&map).await;
             return Ok(())
         }
     };
-    
+
     let download_result = download(&id,need_download,&map,&app,&joinset).await;
-    
+
     match download_result {
         Ok(_) => {}
         Err(details) => {
@@ -443,7 +486,33 @@ pub async fn launch_game(
             return Ok(())
         }
     }
+
+    let running_result = running(&id, game_files, &app, &map, &launch_data.main_class).await;
     
+    let mut reciver = match running_result {
+        Ok(child) => {
+            child
+        }
+        Err(details) => {
+            failed(&id,&app,details.to_string(),&map).await;
+            return Ok(())
+        }
+    };
+
+    while let Some(details) = reciver.recv().await {
+        if let CommandEvent::Stdout(message) = details{
+            let str:String = String::from_utf8(message).unwrap();
+            println!("{str}");
+        }
+    }
+
+    {   // we are going to prepare the file we need.
+        let mut map = map.write().await;
+        map.insert(id.to_string(),Status::Stopped);
+    }
+
+    instance_status_update(&id,&app).await;
+
     Ok(())
 }
 
