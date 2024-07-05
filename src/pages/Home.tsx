@@ -39,7 +39,7 @@ function Progress(prop:InstanceIDProp){
 
 function StatusCover(prop: InstanceIDProp) {
 
-    const [status,setStatus] = useState<InstanceStatusChange>({now: undefined, total: undefined, type: "Stopped"})
+    const [status,setStatus] = useState<InstanceStatusChange>({status: "Stopped"})
 
     useEffect(() => {
         let eventName = "instance_status_update:" + prop.id
@@ -95,7 +95,7 @@ function StatusCover(prop: InstanceIDProp) {
     </div>
 
     const match = (type:InstanceStatusChange)=>{
-        switch (type.type){
+        switch (type.status){
             case "Checking": return checking
             case "Downloading": return downloading
             case "Failed":return failed

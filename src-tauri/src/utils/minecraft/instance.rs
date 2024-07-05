@@ -16,7 +16,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
 use crate::constant::{CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
-use crate::event::instance::{progress_status_update};
+use crate::event::instance::{instance_status_update, progress_status_update};
 
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
@@ -357,4 +357,34 @@ pub enum Status{
 }
 
 pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
-pub type SafeInstanceStatus = RwLock<HashMap<String,Status>>;  // to store the status of instance
+pub struct SafeInstanceStatus (RwLock<HashMap<String,Status>>);  // to store the status of instance
+
+impl From<HashMap<String,Status>> for SafeInstanceStatus{
+    fn from(value: HashMap<String, Status>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl SafeInstanceStatus{
+    pub async fn update(&self, app:&AppHandle, key:&str, status: Status){
+
+        instance_status_update(&app,&key,&status).await;
+        
+        {
+            let _ = &self.0.write().await.insert(key.to_string(), status); 
+        }
+    }
+    
+    pub async fn status_str(&self, key:&str) -> String {
+        let status = &self.0.read().await;
+        let status = status.get(key).unwrap_or(&Status::Stopped);
+        match status {
+            Status::Running(_) => {"Running"}
+            Status::Preparing => {"Preparing"}
+            Status::Checking { .. } => {"Checking"}
+            Status::Downloading { .. } => {"Downloading"}
+            Status::Stopped => {"Stopped"}
+            Status::Failed { .. } => {"Failed"}
+        }.to_string()
+    }
+}

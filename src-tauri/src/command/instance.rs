@@ -11,7 +11,6 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
-use crate::event::instance::{instance_status_update};
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::{get_launch_data, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
@@ -85,11 +84,10 @@ async fn fetch_uid(
 
 #[tauri::command]
 pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandle) -> CommandResult<MinecraftInfoResponse> {
-    let lock = config;
     let mut not_up_to_date_flag = false;
 
     {
-        let mut config = lock.write().await;
+        let mut config = config.write().await;
         if !&config.metadata_setting.package_list.is_vaild() {
             let res = config.metadata_setting.refresh().await;
             if res.is_err() {
@@ -99,7 +97,7 @@ pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandl
         config.save_by_app(&app)?
     }
 
-    let config = lock.read().await;
+    let config = config.read().await;
     
     let default_path = app.path().app_cache_dir()?;
     let minecraft = fetch_uid(&config,&default_path,MINECRAFT_UID).await;
@@ -307,12 +305,7 @@ async fn prepare(
     config: &SafeNoLauncherConfig,
 ) -> Result<(Vec<GameFile>,LaunchData)> // return (the game file need to launch
 {
-    {   // we are going to prepare the file we need.
-        let mut map = map.write().await;
-        map.insert(id.to_string(),Status::Preparing);
-    }
-
-    instance_status_update(&id,app.clone(),&map).await; // trigger event update.
+    map.update(&app,&id,Status::Preparing).await;
 
     let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
     let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
@@ -347,12 +340,8 @@ async fn download(
 
     let status = Status::Downloading { now: ai64.clone(), total: total_size };
 
-    {
-        let mut map = map.write().await;
-        map.insert(id.to_string(), status);
-    }
+    map.update(&app,&id,status).await;
 
-    instance_status_update(&id, app.clone(),&map).await;
 
     {
         let mut join_set:JoinSet<Result<()>> = JoinSet::new();
@@ -409,12 +398,7 @@ async fn running(
     
     let status = Status::Running(command_child.clone());
     
-    {
-        let mut map = map.write().await;
-        map.insert(id.to_string(), status);
-    }
-    
-    instance_status_update(&id, app.clone(),&map).await;
+    map.update(&app,&id,status).await;
     
     Ok(output)
 }
@@ -426,13 +410,7 @@ async fn failed(
     map:&SafeInstanceStatus
 ){
     let status = Status::Failed{details};
-
-    {
-        let mut map = map.write().await;
-        map.insert(id.to_string(), status);
-    }
-
-    instance_status_update(&id, app.clone(),&map).await;
+    map.update(&app,&id,status).await;
 }
 
 #[tauri::command]
@@ -444,20 +422,6 @@ pub async fn launch_game(
     lock: State<'_,DownloadMutex>
 ) -> CommandResult<()>
 {
-
-    {
-        let map = map.read().await;
-        let status = map.get(&id).unwrap_or(&Status::Stopped);
-
-        match status {
-            Status::Failed{..} | Status::Stopped{ .. } => {
-                // do nothing
-            }
-            _=>{
-                return Ok(())
-            }
-        }
-    }
 
     let prepare_result = prepare(&id, &app, &map, &config).await;
 
@@ -506,12 +470,7 @@ pub async fn launch_game(
         }
     }
 
-    {   // we are going to prepare the file we need.
-        let mut map = map.write().await;
-        map.insert(id.to_string(),Status::Stopped);
-    }
-
-    instance_status_update(&id,app.clone(),&map).await;
+    map.update(&app,&id,Status::Stopped).await;
 
     Ok(())
 }
@@ -521,7 +480,7 @@ pub async fn get_instance_status(
     id:String,
     map:State<'_,SafeInstanceStatus>
 ) -> CommandResult<StatusPayload>{
-    let status = map.read().await.get(&id).unwrap_or(&Status::Stopped).clone();
+    let status = map.status_str(&id).await;
     Ok(StatusPayload { status })
 }
 
