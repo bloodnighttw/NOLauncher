@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fs::{metadata, read_dir};
+use std::fs::{read_dir};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
@@ -7,7 +7,7 @@ use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::{App, AppHandle, Manager, State};
 use tokio::fs::create_dir_all;
 use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
@@ -16,6 +16,7 @@ use crate::utils::minecraft::instance::{check_instance, DownloadMutex, GameFile,
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
+use anyhow::Result;
 
 
 const MINECRAFT_UID:&str = "net.minecraft";
@@ -295,6 +296,112 @@ pub async  fn list_instance(
     Ok(vec)
 }
 
+async fn prepare(
+    id:&str,
+    app: &AppHandle,
+    map: &SafeInstanceStatus,
+    config: &SafeNoLauncherConfig,
+) -> Result<(Vec<GameFile>,Vec<GameFile>)> // return (the game file need to launch
+{
+    {   // we are going to prepare the file we need.
+        let mut map = map.write().await;
+        map.insert(id.to_string(),Status::Preparing);
+    }
+
+    instance_status_update(&id,&app).await; // trigger event update.
+    
+    let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
+    let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
+
+    let launch_data = {   // prepare
+        let metadata = &config.read().await.metadata_setting;
+        check_instance(&metadata,&instance_config,app.path().app_cache_dir()?).await?
+    };
+
+    let libpath = LIB_PATH.to_path(&app)?;
+    create_dir_all(libpath.clone()).await?;
+
+    let game_files = launch_data.get_download_entities(libpath);
+
+    let need_download:Vec<GameFile> = game_files.iter()
+        .filter(|x| !x.get_fullpath().exists())
+        .map(|x|x.clone())
+        .collect();
+    
+    Ok((game_files,need_download))
+}
+
+async fn download(
+    id:&str,
+    need_download:Vec<GameFile>,
+    map:&SafeInstanceStatus,
+    app:&AppHandle,
+    join_set:&DownloadMutex
+) -> CommandResult<()>
+{
+    if need_download.len() <= 0{
+        return Ok(())
+    }
+
+    let ai64: Arc<AtomicI64> = AtomicI64::default().into();
+    let total_size = need_download.iter()
+        .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
+        .sum();
+
+    let status = Status::Downloading { now: ai64.clone(), total: total_size };
+
+    {
+        let mut map = map.write().await;
+        map.insert(id.to_string(), status);
+    }
+
+    instance_status_update(&id, &app).await;
+
+    {
+        let mut join_set = join_set.lock().await;
+        let sem = Arc::new(tokio::sync::Semaphore::new(10));
+
+        for i in need_download{
+            let move_ai64 = ai64.clone();
+            let app_clone = app.clone();
+            let id = id.to_string();
+            let permit = Arc::clone(&sem).acquire_owned().await;
+            join_set.spawn(async move {
+                let _permit = permit;
+                i.download_file(move_ai64,&id,&app_clone).await?;
+                Ok(())
+            });
+        }
+
+        while let Some(res) = join_set.join_next().await{
+            if let Ok(result) = res{
+                result?;
+            }else{
+                println!("{:?}",res);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+async fn failed(
+    id:&str,
+    app:&AppHandle,
+    details:String,
+    map:&SafeInstanceStatus
+){
+    let status = Status::Failed{details};
+
+    {
+        let mut map = map.write().await;
+        map.insert(id.to_string(), status);
+    }
+
+    instance_status_update(&id, &app).await;
+}
+
+/// this function will not response any message!
 #[tauri::command]
 pub async fn launch_game(
     id:String,
@@ -302,76 +409,43 @@ pub async fn launch_game(
     map: State<'_, SafeInstanceStatus>,
     config: State<'_,SafeNoLauncherConfig>,
     joinset: State<'_,DownloadMutex>
-) -> CommandResult<Vec<InstanceInfo>>{
-    let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
-    let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
-    
-    // TODO: 1. if running or downloading return from start! 2. make running contain variable about minecraft process. 3. make each step independent as a function.
+) -> CommandResult<()>{
 
-    {   // we are going to prepare the file we need.
-        let mut map = map.write().await;
-        map.insert(id.clone(),Status::Preparing);
+    {
+        let map = map.read().await;
+        let status = map.get(&id).unwrap_or(&Status::Stopped);
+        
+        match status {
+            Status::Failed{..} | Status::Stopped{ .. } => {
+                // do nothing
+            }
+            _=>{
+                return Ok(())
+            }
+        }
     }
-
-    instance_status_update(&id,&app).await;
     
-    let launch_data = {   // prepare
-        let metadata = &config.read().await.metadata_setting;
-        check_instance(&metadata,&instance_config,app.path().app_cache_dir()?).await?
+    let prepare_result = prepare(&id, &app, &map, &config).await;
+    
+    let (game_files,need_download) = match prepare_result {
+        Ok((game,need)) => (game,need),
+        Err(details) => {
+            failed(&id,&app,details.to_string(),&map).await;
+            return Ok(())
+        }
     };
     
-    let libpath = LIB_PATH.to_path(&app)?;
-    create_dir_all(libpath.clone()).await?;
+    let download_result = download(&id,need_download,&map,&app,&joinset).await;
     
-    let game_files = launch_data.get_download_entities(libpath);
-    
-    let need_download:Vec<GameFile> = game_files.iter()
-        .filter(|x| !x.get_fullpath().exists())
-        .map(|x|x.clone())
-        .collect();
-    
-    let total_size:i64 = need_download.iter()
-        .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
-        .sum();
-    
-    if total_size > 0 {
-        let ai64: Arc<AtomicI64> = AtomicI64::default().into();
-        let status = Status::Downloading { now: ai64.clone(), total: total_size };
-
-        {
-            let mut map = map.write().await;
-            map.insert(id.clone(), status);
+    match download_result {
+        Ok(_) => {}
+        Err(details) => {
+            failed(&id,&app,details.to_string(),&map).await;
+            return Ok(())
         }
-        instance_status_update(&id, &app).await;
-
-        {
-            let mut join_set = joinset.lock().await;
-            let sem = Arc::new(tokio::sync::Semaphore::new(10));
-
-            for i in need_download{
-                let move_ai64 = ai64.clone();
-                let appclone = app.clone();
-                let id = id.clone();
-                let permit = Arc::clone(&sem).acquire_owned().await;
-                join_set.spawn(async move {
-                    let _permit = permit;
-                    i.download_file(move_ai64,&id,&appclone).await?;
-                    Ok(())
-                });
-            }
-
-            while let Some(res) = join_set.join_next().await{
-                if let Ok(_) = res{
-                }else{
-                    println!("{:?}",res);
-                }
-            }
-            
-        }
-        
     }
     
-    Ok(Vec::default())
+    Ok(())
 }
 
 #[tauri::command]

@@ -366,7 +366,7 @@ pub enum Status{
     Checking{now:Arc<AtomicI64>,total:i64}, // (the file amount has been checked, total)
     Downloading{now:Arc<AtomicI64>,total:i64}, // (the amount of data has been download, total)
     Stopped,
-    Failed
+    Failed{details:String}
 }
 
 pub type DownloadMutex = Mutex<JoinSet<Result<()>>>; // only one at most instance can download file at the same time.
