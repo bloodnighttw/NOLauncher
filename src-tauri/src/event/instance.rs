@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::sync::atomic::AtomicI64;
 use tauri::{AppHandle, Manager};
 use crate::utils::minecraft::instance::{SafeInstanceStatus, Status};
 
@@ -7,6 +9,11 @@ struct StatusPayload {
     pub status: Status
 }
 
+#[derive(Clone, serde::Serialize)]
+struct ProgressPayload {
+    now:Arc<AtomicI64>,
+    total:i64
+}
 pub async fn instance_status_update(id:&str, app: &AppHandle) {
     let map = app.state::<SafeInstanceStatus>();
 
@@ -16,4 +23,11 @@ pub async fn instance_status_update(id:&str, app: &AppHandle) {
             .unwrap()
     }
 
+}
+
+pub async fn progress_status_update(now:Arc<AtomicI64>,total:i64,app:&AppHandle,id:&str){
+    app.emit(&format!("progress_update:{id}"),ProgressPayload{
+        now,
+        total,
+    }).unwrap()
 }
