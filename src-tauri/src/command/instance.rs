@@ -1,15 +1,17 @@
+use crate::event::instance::StatusPayload;
 use std::collections::HashMap;
 use std::fs::{read_dir};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
+use std::time::Duration;
 use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
-use crate::event::instance::instance_status_update;
+use crate::event::instance::{instance_status_update};
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::{get_launch_data, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
@@ -310,7 +312,7 @@ async fn prepare(
         map.insert(id.to_string(),Status::Preparing);
     }
 
-    instance_status_update(&id,&app).await; // trigger event update.
+    instance_status_update(&id,app.clone(),&map).await; // trigger event update.
 
     let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
     let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
@@ -350,7 +352,7 @@ async fn download(
         map.insert(id.to_string(), status);
     }
 
-    instance_status_update(&id, &app).await;
+    instance_status_update(&id, app.clone(),&map).await;
 
     {
         let mut join_set:JoinSet<Result<()>> = JoinSet::new();
@@ -361,7 +363,7 @@ async fn download(
             let id = id.to_string();
 
             join_set.spawn(async move {
-                i.download_file(move_ai64,&id,&app_clone).await?;
+                i.download_file(move_ai64,total_size,&id,&app_clone).await?;
                 Ok(())
             });
         }
@@ -412,8 +414,7 @@ async fn running(
         map.insert(id.to_string(), status);
     }
     
-    instance_status_update(&id, &app).await;
-    
+    instance_status_update(&id, app.clone(),&map).await;
     
     Ok(output)
 }
@@ -431,7 +432,7 @@ async fn failed(
         map.insert(id.to_string(), status);
     }
 
-    instance_status_update(&id, &app).await;
+    instance_status_update(&id, app.clone(),&map).await;
 }
 
 #[tauri::command]
@@ -510,19 +511,26 @@ pub async fn launch_game(
         map.insert(id.to_string(),Status::Stopped);
     }
 
-    instance_status_update(&id,&app).await;
+    instance_status_update(&id,app.clone(),&map).await;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn trigger_instance_update_event(
+pub async fn get_instance_status(
     id:String,
-    app:&AppHandle
-) -> CommandResult<()>{
-    instance_status_update(&id,&app).await;
+    map:State<'_,SafeInstanceStatus>
+) -> CommandResult<StatusPayload>{
+    let status = map.read().await.get(&id).unwrap_or(&Status::Stopped).clone();
+    Ok(StatusPayload { status })
+}
+
+#[tauri::command]
+pub async fn test() -> CommandResult<()>{
+    tokio::time::sleep(Duration::from_secs(20)).await;
     Ok(())
 }
+
 
 #[cfg(test)]
 mod test{

@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager};
 use crate::utils::minecraft::instance::{SafeInstanceStatus, Status};
 
 #[derive(Clone, serde::Serialize)]
-struct StatusPayload {
+pub struct StatusPayload {
     #[serde(flatten)]
     pub status: Status
 }
@@ -14,14 +14,11 @@ struct ProgressPayload {
     now:Arc<AtomicI64>,
     total:i64
 }
-pub async fn instance_status_update(id:&str, app: &AppHandle) {
-    let map = app.state::<SafeInstanceStatus>();
+pub async fn instance_status_update(id:&str, app: AppHandle, map:&SafeInstanceStatus) {
 
-    {
-        let status = map.read().await.get(id).unwrap_or(&Status::Stopped).clone();
-        app.emit(&format!("instance_status_update:{id}"), StatusPayload { status })
-            .unwrap()
-    }
+    let status = map.read().await.get(id).unwrap_or(&Status::Stopped).clone();
+    app.emit(&format!("instance_status_update:{id}"), StatusPayload { status })
+        .unwrap()
 
 }
 

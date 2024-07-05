@@ -11,7 +11,7 @@ use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
 use tauri::Manager;
 use tokio::sync::{Mutex, RwLock};
-use crate::command::instance::{create_instance, list_instance, list_versions, launch_game};
+use crate::command::instance::{create_instance, list_instance, list_versions, launch_game, get_instance_status,test};
 use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
 use crate::utils::minecraft::instance::{DownloadMutex, SafeInstanceStatus};
 
@@ -81,7 +81,8 @@ fn main() {
             list_versions,
             create_instance,
             list_instance,
-            launch_game
+            launch_game,
+            get_instance_status
         ])
         .setup(|app| {
             let handle = app.handle();

@@ -16,7 +16,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
 use crate::constant::{CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
-use crate::event::instance::{instance_status_update, progress_status_update};
+use crate::event::instance::{progress_status_update};
 
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]

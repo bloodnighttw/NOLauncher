@@ -45,6 +45,8 @@ function StatusCover(prop: InstanceIDProp) {
         let eventName = "instance_status_update:" + prop.id
         let unlistenPromise = listen<InstanceStatusChange>(eventName, (res) => setStatus(res.payload))
 
+        invoke<InstanceStatusChange>("get_instance_status",{id:prop.id}).then((res)=> setStatus(res)).catch(console.error);
+
         return () => { // clean up
             unlistenPromise.then((unlisten) => unlisten()).catch(console.error)
         }
