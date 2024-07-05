@@ -3,3 +3,8 @@ interface InstanceStatusChange{
     now?: number,
     total?: number
 }
+
+interface ProgressChange{
+    now:number,
+    total:number
+}

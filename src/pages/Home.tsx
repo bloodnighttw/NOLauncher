@@ -3,7 +3,7 @@ import {useNavigate} from "react-router-dom";
 import {invoke} from "@tauri-apps/api/core";
 import {listen} from "@tauri-apps/api/event";
 
-interface StatusCoverProp{
+interface InstanceIDProp{
     id:string
 }
 
@@ -17,7 +17,27 @@ interface Props {
     children?: React.ReactNode,
 }
 
-function StatusCover(prop:StatusCoverProp) {
+function Progress(prop:InstanceIDProp){
+
+    const [progress,setProgress] = useState<ProgressChange>({now: 0, total: 100})
+
+    useEffect(()=>{
+
+        const event = "progress_update:"+prop.id;
+        const unlistenPromise = listen<ProgressChange>(event, (res)=> setProgress(res.payload));
+
+        return () =>{ // clean up
+            unlistenPromise.then((unlisten) => unlisten()).catch(console.error)
+        }
+
+    },[setProgress])
+
+
+    return <progress className="progress w-24" value={progress.now} max={progress.total}></progress>
+
+}
+
+function StatusCover(prop: InstanceIDProp) {
 
     const [status,setStatus] = useState<InstanceStatusChange>({now: undefined, total: undefined, type: "Stopped"})
 
@@ -60,22 +80,22 @@ function StatusCover(prop:StatusCoverProp) {
         </button>
     </div>
 
-    const downloading = (now:number,total:number) => <div
+    const downloading = <div
         className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
         <div className="">download</div>
-        <progress className="progress w-24" value={now} max={total}></progress>
+        <Progress id={prop.id}/>
     </div>
 
-    const checking = (now:number,total:number) => <div
+    const checking = <div
         className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
         <div className="">checking</div>
-        <progress className="progress w-24" value={now} max={total}></progress>
+        <Progress id={prop.id}/>
     </div>
 
     const match = (type:InstanceStatusChange)=>{
         switch (type.type){
-            case "Checking": return checking(type.now!,type.total!)
-            case "Downloading": return downloading(type.now!,type.total!)
+            case "Checking": return checking
+            case "Downloading": return downloading
             case "Failed":return failed
             case "Preparing":return preparing
             case "Running":return running
