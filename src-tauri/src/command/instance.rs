@@ -8,8 +8,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use tokio::fs::create_dir_all;
-use crate::constant::{LIB_PATH, NO_SIZE_DEFAULT_SIZE};
+use crate::constant::NO_SIZE_DEFAULT_SIZE;
 use crate::event::instance::instance_status_update;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::{get_launch_data, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
@@ -320,11 +319,8 @@ async fn prepare(
         let metadata = &config.read().await.metadata_setting;
         get_launch_data(&metadata, &instance_config, app).await?
     };
-
-    let lib_path = LIB_PATH.to_path(&app)?;
-    create_dir_all(lib_path.clone()).await?;
-
-    let game_files = launch_data.get_download_entities(lib_path);
+    
+    let game_files = launch_data.get_game_file(app)?;
 
     Ok((game_files,launch_data))
 }

@@ -15,7 +15,7 @@ use tauri_plugin_shell::process::CommandChild;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
-use crate::constant::{CACHED_DEFAULT, NO_SIZE_DEFAULT_SIZE};
+use crate::constant::{CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::instance_status_update;
 
 
@@ -52,8 +52,11 @@ pub struct LaunchData{
 }
 
 impl LaunchData {
-    pub fn get_download_entities(&self,lib_path:PathBuf) -> Vec<GameFile>{
+    pub fn get_game_file(&self, app:&AppHandle) -> Result<Vec<GameFile>>{
         let mut downloads = vec![];
+        
+        let lib_path = LIB_PATH.to_path(&app)?;
+        create_dir_all(lib_path)?;
 
         for i in &self.dep{
             downloads.append(
@@ -105,10 +108,12 @@ impl LaunchData {
         //         "windows": "natives-windows"
         //     }
         // }
-        downloads.into_iter()
+        let temp =downloads.into_iter()
             .collect::<HashSet<_>>()
             .into_iter()
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        
+        Ok(temp)
     }
 }
 
