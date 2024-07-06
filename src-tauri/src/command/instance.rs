@@ -471,8 +471,8 @@ pub async fn launch_game(
     };
     
     let mut reciver = match running_result {
-        Ok(child) => {
-            child
+        Ok(event) => {
+            event
         }
         Err(details) => {
             failed(&id,&app,details.to_string(),&map).await;
@@ -480,14 +480,22 @@ pub async fn launch_game(
         }
     };
 
+    let mut status = None;
+    let mut signal= None;
+
     while let Some(details) = reciver.recv().await {
-        if let CommandEvent::Stdout(message) = details{
-            let str:String = String::from_utf8(message).unwrap();
-            println!("{str}");
+        if let CommandEvent::Terminated(message) = details{
+            status = message.code;
+            signal = message.signal;
+            break;
         }
     }
 
-    map.update(&app,&id,Status::Stopped).await;
+    if status.unwrap_or(-1) == 0{
+        map.update(&app,&id,Status::Stopped).await;
+    } else{
+        map.update(&app,&id,Status::Failed {details:format!("status:{status:?} signal:{signal:?}")}).await;
+    }
 
     Ok(())
 }
