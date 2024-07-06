@@ -356,7 +356,7 @@ pub enum Status{
     Failed{details:String}
 }
 
-pub type DownloadMutex = Mutex<()>; // only one at most instance can download file at the same time.
+pub type InstanceLock = Mutex<()>; // only one at most instance can download file at the same time.
 pub struct SafeInstanceStatus (RwLock<HashMap<String,Status>>);  // to store the status of instance
 
 impl From<HashMap<String,Status>> for SafeInstanceStatus{
@@ -386,5 +386,18 @@ impl SafeInstanceStatus{
             Status::Stopped => {"Stopped"}
             Status::Failed { .. } => {"Failed"}
         }.to_string()
+    }
+    
+    pub async fn can_start(&self, key:&str) -> bool {
+        let status = &self.0.read().await;
+        let status = status.get(key).unwrap_or(&Status::Stopped);
+        match status {
+            Status::Running(_) => {false}
+            Status::Preparing => {false}
+            Status::Checking { .. } => {false}
+            Status::Downloading { .. } => {false}
+            Status::Stopped => {true}
+            Status::Failed { .. } => {true}
+        }
     }
 }

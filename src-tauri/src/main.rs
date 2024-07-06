@@ -11,9 +11,9 @@ use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
 use tauri::Manager;
 use tokio::sync::{Mutex, RwLock};
-use crate::command::instance::{create_instance, list_instance, list_versions, launch_game, get_instance_status,test};
+use crate::command::instance::{create_instance, list_instance, list_versions, launch_game, get_instance_status};
 use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
-use crate::utils::minecraft::instance::{DownloadMutex, SafeInstanceStatus};
+use crate::utils::minecraft::instance::{InstanceLock, SafeInstanceStatus};
 
 mod command;
 mod event;
@@ -58,15 +58,16 @@ fn main() {
     #[cfg(debug_assertions)]
     let builder = builder.plugin(tauri_plugin_devtools::init());
     let instance_status:SafeInstanceStatus = HashMap::new().into();
-    let joinmutex: DownloadMutex = Mutex::new(());
-
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(6).enable_io().enable_time().build().unwrap();
+    let lock: InstanceLock = Mutex::new(());
 
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .manage(authflow)
         .manage(instance_status)
-        .manage(joinmutex)
+        .manage(runtime)
+        .manage(lock)
         .invoke_handler(tauri::generate_handler![
             devicecode_init,
             devicecode_exchange,

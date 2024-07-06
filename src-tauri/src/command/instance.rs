@@ -4,7 +4,6 @@ use std::fs::{read_dir};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
-use std::time::Duration;
 use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -12,15 +11,16 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::{get_launch_data, DownloadMutex, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
+use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
 use anyhow::Result;
+use futures_util::future::join_all;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
-use tokio::task::JoinSet;
 use tauri::async_runtime::Receiver;
+use tokio::runtime::Runtime;
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -325,6 +325,7 @@ async fn download(
     need_download:Vec<GameFile>,
     map:&SafeInstanceStatus,
     app:&AppHandle,
+    runtime:&Runtime
 ) -> CommandResult<()>
 {
     
@@ -344,24 +345,26 @@ async fn download(
 
 
     {
-        let mut join_set:JoinSet<Result<()>> = JoinSet::new();
+        let mut tasks = Vec::default();
 
         for i in need_download{
             let move_ai64 = ai64.clone();
             let app_clone = app.clone();
             let id = id.to_string();
 
-            join_set.spawn(async move {
-                i.download_file(move_ai64,total_size,&id,&app_clone).await?;
-                Ok(())
+            let task = runtime.spawn(async move {
+                i.download_file(move_ai64,total_size,&id,&app_clone).await
             });
+
+            tasks.push(task);
         }
 
-        while let Some(res) = join_set.join_next().await{
-            if let Ok(result) = res{
-                result?;
-            }else{
-                println!("{:?}",res);
+        let results = join_all(tasks).await;
+        for result in results {
+            match result {
+                Ok(Ok(())) => {}, // Success case
+                Ok(Err(e)) => eprintln!("Error in download task: {}", e),
+                Err(e) => eprintln!("Task panicked: {:?}", e),
             }
         }
 
@@ -419,28 +422,40 @@ pub async fn launch_game(
     app: AppHandle,
     map: State<'_, SafeInstanceStatus>,
     config: State<'_,SafeNoLauncherConfig>,
-    lock: State<'_,DownloadMutex>
+    lock: State<'_, InstanceLock>,
+    runtime: State<'_,Runtime>
 ) -> CommandResult<()>
 {
 
-    let prepare_result = prepare(&id, &app, &map, &config).await;
-
-    let (game_files,launch_data) = match prepare_result {
-        Ok((game,launch_data)) => (game,launch_data),
-        Err(details) => {
-            failed(&id,&app,details.to_string(),&map).await;
-            return Ok(())
-        }
-    };
-
-    {
-        let _lock = lock.lock().await;
-        let need_download:Vec<GameFile> = game_files.iter()
-            .filter(|x| !x.get_fullpath().exists())
-            .map(|x|x.clone())
-            .collect();
+    if !map.can_start(&id).await {
+        return Ok(());
+    }
+    
+    let running_result = {
         
-        let download_result = download(&id, need_download, &map, &app).await;
+        let prepare_result = prepare(&id, &app, &map, &config).await;
+
+        let _lock = lock.lock().await;
+
+
+        let (game_files, launch_data) = match prepare_result {
+            Ok((game, launch_data)) => (game, launch_data),
+            Err(details) => {
+                failed(&id, &app, details.to_string(), &map).await;
+                return Ok(());
+            }
+        };
+
+        let need_download = {
+            let need_download: Vec<GameFile> = game_files.iter()
+                .filter(|x| !x.get_fullpath().exists())
+                .map(|x| x.clone())
+                .collect();
+
+            need_download
+        };
+
+        let download_result = download(&id, need_download, &map, &app, &runtime).await;
 
         match download_result {
             Ok(_) => {}
@@ -449,9 +464,11 @@ pub async fn launch_game(
                 return Ok(());
             }
         }
-    }
 
-    let running_result = running(&id, game_files, &app, &map, &launch_data.main_class).await;
+
+        let running_result = running(&id, game_files, &app, &map, &launch_data.main_class).await;
+        running_result
+    };
     
     let mut reciver = match running_result {
         Ok(child) => {
@@ -484,11 +501,6 @@ pub async fn get_instance_status(
     Ok(StatusPayload { status })
 }
 
-#[tauri::command]
-pub async fn test() -> CommandResult<()>{
-    tokio::time::sleep(Duration::from_secs(20)).await;
-    Ok(())
-}
 
 
 #[cfg(test)]
