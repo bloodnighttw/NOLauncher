@@ -20,7 +20,6 @@ use futures_util::future::join_all;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri::async_runtime::Receiver;
-use tokio::runtime::Runtime;
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -325,7 +324,6 @@ async fn download(
     need_download:Vec<GameFile>,
     map:&SafeInstanceStatus,
     app:&AppHandle,
-    runtime:&Runtime
 ) -> CommandResult<()>
 {
     
@@ -352,10 +350,10 @@ async fn download(
             let app_clone = app.clone();
             let id = id.to_string();
 
-            let task = runtime.spawn(async move {
+            let task = tauri::async_runtime::spawn(async move {
                 i.download_file(move_ai64,total_size,&id,&app_clone).await
             });
-
+            
             tasks.push(task);
         }
 
@@ -423,7 +421,6 @@ pub async fn launch_game(
     map: State<'_, SafeInstanceStatus>,
     config: State<'_,SafeNoLauncherConfig>,
     lock: State<'_, InstanceLock>,
-    runtime: State<'_,Runtime>
 ) -> CommandResult<()>
 {
 
@@ -455,7 +452,7 @@ pub async fn launch_game(
             need_download
         };
 
-        let download_result = download(&id, need_download, &map, &app, &runtime).await;
+        let download_result = download(&id, need_download, &map, &app).await;
 
         match download_result {
             Ok(_) => {}
