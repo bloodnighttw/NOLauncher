@@ -253,14 +253,14 @@ export function Create() {
     }
 
     return (
-        <div className="p-4 h-[4.5rem] space-y-4"> {/*h-[4.5rem] = h-18*/}
-            <div className="w-full flex flex-row gap-2">
-                <div className="w-36 h-[4.5rem] flex-none">
+        <div className="p-2">
+            <div className="w-full flex flex-row gap-2 p-2">
+                <div className="w-24 h-20">
                     <img
-                        className="w-36 h-[4.5rem] rounded-md object-cover"
+                        className="w-20 h-20 rounded-md object-cover"
                         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLqPCLMpN2yRL9noYNEuddweIC-Spud6jIuA&s"/>
                 </div>
-                <div className="flex flex-col w-full h-[4.5rem] gap-2">
+                <div className="flex flex-col gap-2 w-full h-20">
                     <input type="text" placeholder="Type Instance Name Here "
                            className="input input-xs input-bordered w-full h-full"
                            onChange={(e) => {
@@ -268,14 +268,14 @@ export function Create() {
                            }}
                     />
 
-                    <select disabled className="select select-xs select-bordered w-full h-full">
+                    <select disabled className="select select-bordered w-full select-sm w-full h-full ">
                         <option disabled selected>Tag is Coming soon......</option>
                     </select>
                 </div>
 
 
             </div>
-            <div className="h-full space-y-2">
+            <div className="h-full space-y-2 p-2">
                 <div role="tablist" className="tabs tabs-bordered">
                     {tabs.map((i, index) => (
                         <div className={index == tabIndex ? tabActive : tab}
