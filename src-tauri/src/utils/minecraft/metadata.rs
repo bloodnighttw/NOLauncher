@@ -11,6 +11,10 @@ use thiserror::Error;
 use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
 use serde_json::Value;
+use tauri::AppHandle;
+use nolauncher_derive::Load;
+use crate::constant::ASSET_INDEX_ROOT;
+use crate::utils::config::Load;
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Default)]
 #[serde(rename_all = "camelCase")]
@@ -293,6 +297,25 @@ pub struct MavenLibrary{
     pub url:String,
 }
 
+async fn fetch_and_store(file:PathBuf, url:&str) -> Result<()>{
+    let res = reqwest::get(url).await;
+    match res {
+        Ok(res) => {
+
+            if !res.status().is_success(){
+                return Err(MetadataFileError::Fetching.into())
+            }
+
+            let body = res.text().await.expect("this should be success!");
+            tokio::fs::write(file,body.into_bytes()).await.unwrap();
+            Ok(())
+        }
+        Err(e) => {
+            Err(MetadataFileError::Unknown(e.to_string()).into())
+        }
+    }
+}
+
 /// This enum is used to store the library information, it contains the common library
 /// information or maven-based library information.
 #[derive(Debug,Clone,Deserialize,PartialEq)]
@@ -300,6 +323,44 @@ pub struct MavenLibrary{
 pub enum Library{
     Common(CommonLibrary),
     Maven(MavenLibrary)
+}
+
+#[derive(Debug,Clone,Deserialize,PartialEq)]
+pub struct AssetObject {
+    pub hash:String,
+    pub size:i64,
+}
+
+impl From<AssetObject> for String{
+    fn from(value: AssetObject) -> Self {
+        format!("{}:{}",value.hash,value.size)
+    }
+}
+
+#[derive(Debug,Clone,Deserialize,PartialEq,Load)]
+pub struct AssetInfo{
+    pub objects:HashMap<String,AssetObject>
+}
+
+#[derive(Debug,Clone,Deserialize,PartialEq)]
+pub struct AssetIndex{
+    pub id:String,
+    pub sha1:String,
+    pub size:i64,
+    pub total_size:i64,
+    pub url:String
+}
+
+impl AssetIndex{
+    pub async fn get_objects(&self,app:&AppHandle)->Result<AssetInfo>{
+        let assets_index_root = ASSET_INDEX_ROOT.to_path(&app)?;
+        let assets_index_file = assets_index_root.join(&self.id);
+        
+        fetch_and_store(assets_index_file.clone(),&self.url).await?;
+        
+        let file = *AssetInfo::load(&assets_index_file)?;
+        Ok(file)
+    }
 }
 
 /// This struct is used to store the version details of a package, like minecraft, fabric-loader, etc.
@@ -326,7 +387,8 @@ pub struct VersionDetails {
     pub main_class:Option<String>,
     pub main_jar:Option<CommonLibrary>,
     pub minecraft_arguments:Option<String>,
-}
+    pub asset_index:Option<AssetIndex>,
+} 
 
 /* the function to handle metadata */
 pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
@@ -414,25 +476,6 @@ impl MetadataSetting{
 
         Ok(content)
      }
-
-     async fn fetch_and_store(file:PathBuf, url:&str) -> Result<(),MetadataFileError>{
-        let res = reqwest::get(url).await;
-        match res {
-            Ok(res) => {
-
-                if !res.status().is_success(){
-                    return Err(MetadataFileError::Fetching)
-                }
-                
-                let body = res.text().await.expect("this should be success!");
-                tokio::fs::write(file,body.into_bytes()).await.unwrap();
-                Ok(())
-            }
-            Err(e) => {
-                Err(MetadataFileError::Unknown(e.to_string()))
-            }
-        }
-    }
     
     async fn check_and_create_folder(path:PathBuf) -> Result<(),MetadataFileError>{
         match tokio::fs::create_dir_all(path).await{
@@ -443,7 +486,7 @@ impl MetadataSetting{
         }
     }
 
-    pub async fn get_package_details(&self,default:PathBuf,uid:&str,sha:SHAType) -> Result<PackageDetails,MetadataFileError>{
+    pub async fn get_package_details(&self,default:PathBuf,uid:&str,sha:SHAType) -> Result<PackageDetails>{
         let cache_root = self.cache_override.clone().unwrap_or({
             default
         });
@@ -459,7 +502,7 @@ impl MetadataSetting{
 
         loop{
             if count > 3{
-                return Err(MetadataFileError::RetryTooManyTime)
+                return Err(MetadataFileError::RetryTooManyTime.into())
             }
             count+=1;
             let content = Self::get_cached_file_content(file.clone(),sha.clone()).await;
@@ -471,25 +514,25 @@ impl MetadataSetting{
                     if let MetadataFileError::IO(e) = error {
                         if let NotFound = e{
                             let url = format!("{}/{}",self.api,uid);
-                            Self::fetch_and_store(file.clone(),&url).await?;
+                            fetch_and_store(file.clone(),&url).await?;
                             continue;
                         }
-                        return Err(MetadataFileError::IO(e))
+                        return Err(MetadataFileError::IO(e).into())
                     }
 
                     if let MetadataFileError::Invalid = error{
-                        Self::fetch_and_store(file.clone(),&url).await?; // error here!
+                        fetch_and_store(file.clone(),&url).await?; // error here!
                         continue
                     }
 
-                    return Err(error)
+                    return Err(error.into())
 
                 }
             }
         }
     }
 
-    pub async fn get_version_details(&self,default:PathBuf,uid:&str,version:&str,sha:SHAType) -> Result<VersionDetails,MetadataFileError>{
+    pub async fn get_version_details(&self,default:PathBuf,uid:&str,version:&str,sha:SHAType) -> Result<VersionDetails>{
         let cache_root = self.cache_override.clone().unwrap_or({
             default
         });
@@ -504,7 +547,7 @@ impl MetadataSetting{
         loop{
 
             if count > 3{
-                return Err(MetadataFileError::RetryTooManyTime)
+                return Err(MetadataFileError::RetryTooManyTime.into())
             }
             count+=1;
 
@@ -516,17 +559,17 @@ impl MetadataSetting{
                 Err(error) => {
                     if let MetadataFileError::IO(e) = error {
                         if let NotFound = e{    
-                            Self::fetch_and_store(file.clone(),&url).await?;
+                            fetch_and_store(file.clone(),&url).await?;
                             continue;
                         }
-                        return Err(MetadataFileError::IO(e))
+                        return Err(MetadataFileError::IO(e).into())
                     }
 
                     if let MetadataFileError::Invalid = error{
-                        Self::fetch_and_store(file.clone(),&url).await?;
+                        fetch_and_store(file.clone(),&url).await?;
                     }
 
-                    return Err(error)
+                    return Err(error.into())
 
                 }
             }
