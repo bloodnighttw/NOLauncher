@@ -353,6 +353,7 @@ pub struct AssetIndex{
 impl AssetIndex{
     pub async fn get_objects(&self,app:&AppHandle)->Result<AssetInfo>{
         let assets_index_root = ASSET_INDEX_ROOT.to_path(&app)?;
+        tokio::fs::create_dir_all(&assets_index_root).await?;
         let assets_index_file = assets_index_root.join(&self.id);
         
         fetch_and_store(assets_index_file.clone(),&self.url).await?;
