@@ -13,7 +13,6 @@ use anyhow::Result;
 use serde_json::Value;
 use tauri::AppHandle;
 use nolauncher_derive::Load;
-use crate::constant::ASSET_INDEX_ROOT;
 use crate::utils::config::Load;
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Default)]
@@ -347,21 +346,10 @@ pub struct AssetIndex{
     pub id:String,
     pub sha1:String,
     pub size:i64,
+    pub total_size:i64,
     pub url:String
 }
 
-impl AssetIndex{
-    pub async fn get_objects(&self,app:&AppHandle)->Result<AssetInfo>{
-        let assets_index_root = ASSET_INDEX_ROOT.to_path(&app)?;
-        tokio::fs::create_dir_all(&assets_index_root).await?;
-        let assets_index_file = assets_index_root.join(&self.id);
-        
-        fetch_and_store(assets_index_file.clone(),&self.url).await?;
-        
-        let file = *AssetInfo::load(&assets_index_file)?;
-        Ok(file)
-    }
-}
 
 /// This struct is used to store the version details of a package, like minecraft, fabric-loader, etc.
 /// Compared with VersionInfo, this struct contains more details, like the dependencies, libraries, main class, etc.
