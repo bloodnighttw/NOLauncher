@@ -9,7 +9,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use crate::constant::NO_SIZE_DEFAULT_SIZE;
+use crate::constant::{ASSET_ROOT, NO_SIZE_DEFAULT_SIZE};
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status, FileType};
 use crate::utils::minecraft::metadata::{decode_hex};
@@ -382,7 +382,7 @@ async fn running(
     game_files:Vec<GameFile>,
     app:&AppHandle,
     map:&SafeInstanceStatus,
-    main_class:&str
+    launch:&LaunchData
 ) -> Result<Receiver<CommandEvent>>{
     
     info!("Running game: {}",id);
@@ -395,16 +395,48 @@ async fn running(
         .join(":");// windows use ";"
     
     let shell = app.shell();
-    let (output,command_child)= shell
-            .command("java")
-            .arg("-cp")
-            .arg(classpath)
-            .arg(main_class)
-            .arg("--accessToken")
-            .arg("nothing here")
-            .arg("--version")
-            .arg("test")
-            .spawn()?;
+    
+    let mut command = shell.command("java");
+    
+    let assets_folder = ASSET_ROOT.to_path(&app).unwrap();
+    
+    let jvm_args = vec![
+        "-cp",
+        &classpath,
+        &launch.main_class, // main class must be last one
+    ];
+    
+    let launch_args = vec![
+        "--accessToken",
+        "nothing here",
+        "--version",
+        "test",
+        "--assetsDir",
+        assets_folder.to_str().unwrap(),
+        "--assetIndex",
+        &launch.asset_index.id,
+    ];
+
+    for i in jvm_args{
+        command = command.arg(i);
+    }
+
+    for i in launch_args {
+        command = command.arg(i);
+    }
+    
+    // let (output,command_child)= shell
+    //         .command("java")
+    //         .arg("-cp")
+    //         .arg(classpath)
+    //         .arg(&launch.main_class)
+    //         .arg("--accessToken")
+    //         .arg("nothing here")
+    //         .arg("--version")
+    //         .arg("test")
+    //         .spawn()?;
+    
+    let (output,command_child) = command.spawn()?;
     
     let command_child:Arc<CommandChild> = command_child.into();
     
@@ -474,7 +506,7 @@ pub async fn launch_game(
         }
 
 
-        let running_result = running(&id, game_files, &app, &map, &launch_data.main_class).await;
+        let running_result = running(&id, game_files, &app, &map, &launch_data).await;
         running_result
     };
     
