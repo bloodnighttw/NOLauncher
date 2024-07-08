@@ -16,11 +16,12 @@ use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
 use anyhow::Result;
-use futures_util::future::join_all;
 use log::{error, info};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri::async_runtime::Receiver;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -345,25 +346,30 @@ async fn download(
 
     {
         let mut tasks = Vec::default();
+        let sem:Arc<Semaphore> = Semaphore::new(12).into();
+        
 
         for i in need_download{
-            let move_ai64 = ai64.clone();
-            let app_clone = app.clone();
-            let id = id.to_string();
-
+            let sem = sem.clone();
             let task = tauri::async_runtime::spawn(async move {
-                i.download_file(move_ai64,total_size,&id,&app_clone).await
+                let _ouo = sem.acquire().await.unwrap();
+                i.download_file().await
             });
             
             tasks.push(task);
         }
 
-        let results = join_all(tasks).await;
-        for result in results {
+        let mut joinset = JoinSet::from_iter(tasks.into_iter());
+        
+        while let Some(Ok(result)) = joinset.join_next().await{
             match result {
-                Ok(Ok(())) => {}, // Success case
-                Ok(Err(e)) => eprintln!("Error in download task: {}", e),
-                Err(e) => eprintln!("Task panicked: {:?}", e),
+                Ok(Ok(_)) => {
+                    info!("{id} download success!");
+                }
+                Ok((Err(e))) => {
+                    error!("{id} download error:{}",e)
+                }
+                Err(_) => {}
             }
         }
 
@@ -378,6 +384,8 @@ async fn running(
     map:&SafeInstanceStatus,
     main_class:&str
 ) -> Result<Receiver<CommandEvent>>{
+    
+    info!("Running game: {}",id);
 
     let classpath = game_files.iter()
         // we don't need asset and installer in classpath
