@@ -5,7 +5,7 @@ use std::sync::{Arc};
 use std::sync::atomic::{AtomicI64};
 use std::sync::atomic::Ordering::Relaxed;
 use serde::{Deserialize, Serialize};
-use crate::utils::minecraft::metadata::{decode_hex, equal_my_platform, Library, MetadataSetting, rules_analyzer, string2platform};
+use crate::utils::minecraft::metadata::{AssetIndex, decode_hex, equal_my_platform, Library, MetadataSetting, rules_analyzer, string2platform};
 use crate::utils::minecraft::metadata::Library::Common;
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
@@ -15,7 +15,7 @@ use tauri_plugin_shell::process::CommandChild;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
-use crate::constant::{CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
+use crate::constant::{ASSET_OBJECT_ROOT, CACHED_DEFAULT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::event::instance::{instance_status_update, progress_status_update};
 
 
@@ -32,27 +32,29 @@ pub struct InstanceConfig{
 }
 
 #[derive(Debug,PartialEq,Clone,Hash,Eq)]
-pub enum LibType{
+pub enum FileType {
     Lib,
     Client,
-    Installer // for forge, neoforge only.
+    Installer, // for forge, neoforge only.
+    Asset
 }
 
-impl Default for LibType{
+impl Default for FileType {
     fn default() -> Self {
-        LibType::Lib
+        FileType::Lib
     }
 }
 
 ///TODO: Add Client and installer path. 
-#[derive(Default,Debug,PartialEq)]
+#[derive(Debug,PartialEq)]
 pub struct LaunchData{
     pub main_class: String,
     pub dep: Vec<Library>,
+    pub asset_index: AssetIndex,
 }
 
 impl LaunchData {
-    pub fn get_game_file(&self, app:&AppHandle) -> Result<Vec<GameFile>>{
+    pub async fn get_game_file(&self, app:&AppHandle) -> Result<Vec<GameFile>>{
         let mut downloads = vec![];
         
         let lib_path = LIB_PATH.to_path(&app)?;
@@ -63,7 +65,22 @@ impl LaunchData {
                 &mut GameFile::from(i.clone(), lib_path.clone())
             )
         }// correct
-
+        
+        let temp = self.asset_index.get_asset_info(&app).await?;
+        let obj_path = ASSET_OBJECT_ROOT.to_path(&app)?;
+        
+        for (_,value) in temp.objects{
+            
+            let path = obj_path.join(&value.hash[0..2]);
+            
+            downloads.push(GameFile{
+                path,
+                filename: value.hash.clone(),
+                url: format!("https://resources.download.minecraft.net/{}/{}",&value.hash[0..2],value.hash),
+                file_type: FileType::Asset,
+                size: value.size.into(),
+            })
+        }
 
         // to remove duplicates
         // some data look like this, which will cause duplicates download:
@@ -122,7 +139,7 @@ pub struct GameFile {
     pub path:PathBuf,
     pub filename:String,
     pub url:String,
-    pub lib_type: LibType,
+    pub file_type: FileType,
     pub size:Option<i64>
 }
 
@@ -152,9 +169,9 @@ impl GameFile {
                 let lib_type_raw = spilt.next(); // for client or installer type
                 
                 let lib_type = match lib_type_raw {
-                    Some("installer") => {LibType::Installer}
-                    Some("client") => {LibType::Client}
-                    _ => {LibType::Lib}
+                    Some("installer") => { FileType::Installer}
+                    Some("client") => { FileType::Client}
+                    _ => { FileType::Lib}
                 };
 
                 let j = orgs.split('.'); // to path
@@ -176,7 +193,7 @@ impl GameFile {
                             path:path.clone(),
                             filename,
                             url: lib.url,
-                            lib_type:lib_type.clone(),
+                            file_type:lib_type.clone(),
                             size:Some(lib.size)
                         }
                     )
@@ -192,7 +209,7 @@ impl GameFile {
                                 path:path.clone(),
                                 filename,
                                 url: v.url,
-                                lib_type:lib_type.clone(),
+                                file_type:lib_type.clone(),
                                 size:Some(v.size)
                             }
                         )
@@ -224,7 +241,7 @@ impl GameFile {
                         path,
                         filename,
                         url,
-                        lib_type: LibType::Lib,
+                        file_type: FileType::Lib,
                         size:None
                     }
                 ]
@@ -273,8 +290,10 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
     let pkg = &instance_config.dep;
     let cached_path = CACHED_DEFAULT.to_path(app)?;
 
-    let mut vec = Vec::default();
+    let mut dep = Vec::default();
     let mut main_class:Option<String> = None;
+    let mut asset_index = None;
+
     for (uid,version) in pkg.iter(){
         let pkg_info = config
             .package_list
@@ -306,10 +325,10 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
                 Library::Maven(_) => {}
             }
 
-            vec.push(i.clone())
+            dep.push(i.clone())
         }
 
-        'it2: for i in version_details.maven_files.iter(){
+        'it2: for i in version_details.maven_files.iter(){ // for forge installer
             match i {
                 Common(a) => {
                     if !rules_analyzer(a.rules.clone()){
@@ -319,21 +338,26 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
                 Library::Maven(_) => {}
             }
 
-            vec.push(i.clone())
+            dep.push(i.clone())
         }
 
         if uid == &instance_config.top{
             main_class = version_details.main_class.clone();
         }
 
-        if let Some(client) = version_details.main_jar{
-            vec.push(Common(client.clone()));
+        if let Some(client_lib) = &version_details.main_jar{
+            dep.push(Common(client_lib.clone()));
+        }
+        
+        if let Some(index) = &version_details.asset_index{
+            asset_index = Some(index.clone());
         }
     }
 
     Ok(LaunchData{
         main_class:main_class.unwrap(),
-        dep:vec
+        dep,
+        asset_index:asset_index.unwrap()
     })
 }
 

@@ -12,7 +12,9 @@ use crate::utils::data::{TimeSensitiveData, TimeSensitiveTrait};
 use anyhow::Result;
 use serde_json::Value;
 use tauri::AppHandle;
+use tokio::fs::create_dir_all;
 use nolauncher_derive::Load;
+use crate::constant::ASSET_INDEX_ROOT;
 use crate::utils::config::Load;
 
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Default)]
@@ -349,6 +351,17 @@ pub struct AssetIndex{
     pub url:String
 }
 
+impl AssetIndex{
+    pub async fn get_asset_info(&self, app:&AppHandle) -> Result<AssetInfo>{
+        let path = ASSET_INDEX_ROOT.to_path(&app)?;
+        create_dir_all(path.clone()).await?;
+        let file = path.join(format!("{}.json",self.id));
+        fetch_and_store(file.clone(),&self.url).await?;
+        let data = AssetInfo::load(&file).unwrap();
+        Ok(*data)
+    }
+}
+
 
 /// This struct is used to store the version details of a package, like minecraft, fabric-loader, etc.
 /// Compared with VersionInfo, this struct contains more details, like the dependencies, libraries, main class, etc.
@@ -508,7 +521,7 @@ impl MetadataSetting{
                     }
 
                     if let MetadataFileError::Invalid = error{
-                        fetch_and_store(file.clone(),&url).await?; // error here!
+                        fetch_and_store(file.clone(),&url).await?;
                         continue
                     }
 

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use crate::constant::NO_SIZE_DEFAULT_SIZE;
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status};
+use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status, FileType};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
@@ -314,7 +314,7 @@ async fn prepare(
         get_launch_data(&metadata, &instance_config, app).await?
     };
     
-    let game_files = launch_data.get_game_file(app)?;
+    let game_files = launch_data.get_game_file(app).await?;
 
     Ok((game_files,launch_data))
 }
@@ -379,6 +379,8 @@ async fn running(
 ) -> Result<Receiver<CommandEvent>>{
 
     let list = game_files.iter()
+        // we don't need asset and installer in classpath
+        .filter(|x| x.file_type != FileType::Asset && x.file_type != FileType::Installer) 
         .map(|x|x.get_fullpath().to_str().unwrap().to_string())
         .collect::<Vec<String>>()
         .join(":");// windows use ";"
