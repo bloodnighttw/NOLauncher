@@ -31,25 +31,26 @@ const retry = // from lucide icon
     </svg>
 
 
-function Progress(prop: InstanceIDProp) {
-
-    const [progress, setProgress] = useState<ProgressChange>({now: 0, total: 100})
-
-    useEffect(() => {
-
-        const event = "progress_update:" + prop.id;
-        const unlistenPromise = listen<ProgressChange>(event, (res) => setProgress(res.payload));
-
-        return () => { // clean up
-            unlistenPromise.then((unlisten) => unlisten()).catch(console.error)
-        }
-
-    }, [setProgress])
-
-
-    return <progress className="progress w-24" value={progress.now} max={progress.total}></progress>
-
-}
+// function Progress(prop: InstanceIDProp) { // comment because it will cause freeze
+//
+//     const [progress, setProgress] = useState<ProgressChange>({now: 0, total: 100})
+//
+//     useEffect(() => {
+//
+//         const event = "progress_update:" + prop.id;
+//         const unlistenPromise = listen<ProgressChange>(event, (res) => setProgress(res.payload));
+//
+//         return () => { // clean up
+//             console.log("unlisten", event);
+//             unlistenPromise.then((unlisten) => unlisten()).catch(console.error)
+//         }
+//
+//     }, [setProgress])
+//
+//
+//     return <progress className="progress w-24" value={progress.now} max={progress.total}></progress>
+//
+// }
 
 function StatusCover(prop: InstanceIDProp) {
 
@@ -98,14 +99,18 @@ function StatusCover(prop: InstanceIDProp) {
 
     const downloading = <div
         className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
-        <div className="">download</div>
-        <Progress id={prop.id}/>
+        <div className="flex flex-row">
+            <span className="flex loading loading-spinner loading-xs p-2"></span>
+        </div>
+        <div className="">downloading...</div>
     </div>
 
     const checking = <div
         className="w-full h-full items-center rounded-md absolute bg-base-100 bg-opacity-0 opacity-100 bg-opacity-70 duration-200 flex flex-col justify-center items-center">
+        <div className="flex flex-row">
+            <span className="flex loading loading-spinner loading-xs p-2"></span>
+        </div>
         <div className="">checking</div>
-        <Progress id={prop.id}/>
     </div>
 
     const match = (type: InstanceStatusChange) => {
