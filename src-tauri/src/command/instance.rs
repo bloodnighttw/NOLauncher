@@ -17,6 +17,7 @@ use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
 use anyhow::Result;
 use futures_util::future::join_all;
+use log::{error, info};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri::async_runtime::Receiver;
@@ -378,9 +379,9 @@ async fn running(
     main_class:&str
 ) -> Result<Receiver<CommandEvent>>{
 
-    let list = game_files.iter()
+    let classpath = game_files.iter()
         // we don't need asset and installer in classpath
-        .filter(|x| x.file_type != FileType::Asset && x.file_type != FileType::Installer) 
+        .filter(|x| x.file_type != FileType::Asset && x.file_type != FileType::Installer)
         .map(|x|x.get_fullpath().to_str().unwrap().to_string())
         .collect::<Vec<String>>()
         .join(":");// windows use ";"
@@ -389,7 +390,7 @@ async fn running(
     let (output,command_child)= shell
             .command("java")
             .arg("-cp")
-            .arg(list)
+            .arg(classpath)
             .arg(main_class)
             .arg("--accessToken")
             .arg("nothing here")
@@ -483,11 +484,24 @@ pub async fn launch_game(
     let mut signal= None;
 
     while let Some(details) = reciver.recv().await {
-        if let CommandEvent::Terminated(message) = details{
-            status = message.code;
-            signal = message.signal;
-            break;
+        match details {
+            CommandEvent::Stdout(content)=>{
+                info!("[{id}][STDOUT]: {}",String::from_utf8(content).unwrap())
+            }
+            CommandEvent::Terminated(message) => {
+                status = message.code;
+                signal = message.signal;
+                break;
+            }
+            CommandEvent::Stderr(e) => {
+                info!("[{id}][STDERR]: {}",String::from_utf8(e).unwrap())
+            }
+            CommandEvent::Error(e) => {
+                error!("{}",e)
+            }
+            _unknown => {}
         }
+
     }
 
     if status.unwrap_or(-1) == 0{
