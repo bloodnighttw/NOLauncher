@@ -1,11 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use std::path:: PathBuf;
+use std::fs::create_dir_all;
+use std::io::Cursor;
+use std::path::{PathBuf};
+use std::sync::{Arc};
+use std::sync::atomic::{AtomicI64};
 use serde::{Deserialize, Serialize};
-use crate::utils::minecraft::metadata::{decode_hex, equal_my_platform, Library, MetadataSetting, rules_analyzer, string2platform};
+use crate::utils::minecraft::metadata::{AssetIndex, decode_hex, equal_my_platform, Library, MetadataSetting, rules_analyzer, string2platform};
 use crate::utils::minecraft::metadata::Library::Common;
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use anyhow::Result;
+use tauri::AppHandle;
+use tauri_plugin_shell::process::CommandChild;
+use tokio::sync::{Mutex, RwLock};
 use nolauncher_derive::{Load, Save};
+use crate::constant::{ASSET_OBJECT_ROOT, CACHED_DEFAULT, LIB_PATH};
+use crate::event::instance::{instance_status_update};
 
 
 #[derive(Serialize,Deserialize,Debug,Default,Save,Load)]
@@ -21,35 +30,56 @@ pub struct InstanceConfig{
 }
 
 #[derive(Debug,PartialEq,Clone,Hash,Eq)]
-pub enum LibType{
+pub enum FileType {
     Lib,
     Client,
-    Installer // for forge, neoforge only.
+    Installer, // for forge, neoforge only.
+    Asset
 }
 
-impl Default for LibType{
+impl Default for FileType {
     fn default() -> Self {
-        LibType::Lib
+        FileType::Lib
     }
 }
 
 ///TODO: Add Client and installer path. 
-#[derive(Default,Debug,PartialEq)]
+#[derive(Debug,PartialEq)]
 pub struct LaunchData{
     pub main_class: String,
     pub dep: Vec<Library>,
+    pub asset_index: AssetIndex,
+    pub launch_args: String
 }
 
 impl LaunchData {
-    pub fn get_download_entities(&self,lib_path:PathBuf) -> Vec<DownloadEntity>{
+    pub async fn get_game_file(&self, app:&AppHandle) -> Result<Vec<GameFile>>{
         let mut downloads = vec![];
+        
+        let lib_path = LIB_PATH.to_path(&app)?;
+        create_dir_all(&lib_path)?;
 
         for i in &self.dep{
             downloads.append(
-                &mut DownloadEntity::from(i.clone(), lib_path.clone())
+                &mut GameFile::from(i.clone(), lib_path.clone())
             )
         }// correct
-
+        
+        let temp = self.asset_index.get_asset_info(&app).await?;
+        let obj_path = ASSET_OBJECT_ROOT.to_path(&app)?;
+        
+        for (_,value) in temp.objects{
+            
+            let path = obj_path.join(&value.hash[0..2]);
+            
+            downloads.push(GameFile{
+                path,
+                filename: value.hash.clone(),
+                url: format!("https://resources.download.minecraft.net/{}/{}",&value.hash[0..2],value.hash),
+                file_type: FileType::Asset,
+                size: value.size.into(),
+            })
+        }
 
         // to remove duplicates
         // some data look like this, which will cause duplicates download:
@@ -94,25 +124,25 @@ impl LaunchData {
         //         "windows": "natives-windows"
         //     }
         // }
-        downloads.into_iter()
+        let temp =downloads.into_iter()
             .collect::<HashSet<_>>()
             .into_iter()
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        
+        Ok(temp)
     }
 }
 
 #[derive(Debug,Clone,PartialEq,Hash,Eq)]
-pub struct DownloadEntity{
+pub struct GameFile {
     pub path:PathBuf,
     pub filename:String,
     pub url:String,
-    pub lib_type: LibType
-
+    pub file_type: FileType,
+    pub size:Option<i64>
 }
 
-
-
-impl DownloadEntity{
+impl GameFile {
 
     /// The forge MCP package has version name XXX@ZIP, we need to store under version name XXX.
     ///
@@ -128,7 +158,7 @@ impl DownloadEntity{
         }
     }
 
-    pub fn from(lib:Library,mut path:PathBuf) -> Vec<DownloadEntity>{
+    pub fn from(lib:Library,mut path:PathBuf) -> Vec<GameFile>{
         match lib {
             Common(lib) => {
                 let mut spilt = lib.name.splitn(4,":");
@@ -138,9 +168,9 @@ impl DownloadEntity{
                 let lib_type_raw = spilt.next(); // for client or installer type
                 
                 let lib_type = match lib_type_raw {
-                    Some("installer") => {LibType::Installer}
-                    Some("client") => {LibType::Client}
-                    _ => {LibType::Lib}
+                    Some("installer") => { FileType::Installer}
+                    Some("client") => { FileType::Client}
+                    _ => { FileType::Lib}
                 };
 
                 let j = orgs.split('.'); // to path
@@ -158,11 +188,12 @@ impl DownloadEntity{
                     let filename = lib.url.rsplit_once("/").unwrap().1.to_string();
 
                     vec.push(
-                        DownloadEntity{
+                        GameFile {
                             path:path.clone(),
                             filename,
                             url: lib.url,
-                            lib_type:lib_type.clone()
+                            file_type:lib_type.clone(),
+                            size:Some(lib.size)
                         }
                     )
                 }
@@ -173,11 +204,12 @@ impl DownloadEntity{
                         let filename = v.url.rsplit_once('/').unwrap().1.to_string();
 
                         vec.push(
-                            DownloadEntity{
+                            GameFile {
                                 path:path.clone(),
                                 filename,
                                 url: v.url,
-                                lib_type:lib_type.clone()
+                                file_type:lib_type.clone(),
+                                size:Some(v.size)
                             }
                         )
                     }
@@ -204,45 +236,51 @@ impl DownloadEntity{
                 let url = format!("{}/{}/{}/{}/{}",maven.url,orgs.replace('.',"/"),pkg,version,filename);
 
                 vec![
-                    DownloadEntity{
+                    GameFile {
                         path,
                         filename,
                         url,
-                        lib_type: LibType::Lib
+                        file_type: FileType::Lib,
+                        size:None
                     }
                 ]
             }
         }
     }
-
+    
+    pub fn get_fullpath(&self) -> PathBuf{
+        self.path.join(&self.filename)
+    }
+    
+    pub async fn download_file(&self) -> Result<()>{
+        create_dir_all(&self.path)?; // create path
+        let fullpath = self.get_fullpath();
+        let response = reqwest::get(&self.url)
+            .await.unwrap();
+        
+        let mut file = std::fs::File::create(fullpath)?;
+        let mut content = Cursor::new(response.bytes().await?);
+        std::io::copy(&mut content, &mut file)?;
+        Ok(())
+    }
 }
 
-/// Get the dependency of the package recursively.
-///
-/// # Arguments
-///
-/// * `uid`: the package uid.
-/// * `mc_version`: minecraft version. (e.g. 1.16.5, 1.17.1,etc.)
-/// * `p_version`: platform specific version (e.g. fabric, forge, liteloader, neoforge, quilt, lwjgl, lwjgl3).
-/// * `metadata_setting`: metadata setting. the variable is used to get the package details.
-/// * `cached`: the cached folder.
-///
-/// returns: HashMap<String, String> - the key is the uid, the value is the version.
-///
-/// # Examples
-///
-/// ```
-///
-/// println!("{:?}", res); // print the result
-///
-/// ```
-pub async fn check_instance(config: &MetadataSetting, instance_config: &InstanceConfig, cached_path:PathBuf) -> Result<LaunchData> {
-    let pkg = &instance_config.dep;
 
-    let mut vec = Vec::default();
+pub async fn get_launch_data(config: &MetadataSetting, instance_config: &InstanceConfig,app:&AppHandle) -> Result<LaunchData> {
+    let pkg = &instance_config.dep;
+    let cached_path = CACHED_DEFAULT.to_path(app)?;
+
+    let mut dep = Vec::default();
     let mut main_class:Option<String> = None;
+    let mut asset_index = None;
+    let mut launch_args = None;
+    let mut default_launch_args = None;
+
     for (uid,version) in pkg.iter(){
-        let pkg_info = config.package_list.data.packages.get(uid).unwrap();
+        let pkg_info = config
+            .package_list
+            .data.packages
+            .get(uid).unwrap();
         let sha256 = SHA256(decode_hex(&pkg_info.sha256).unwrap());
 
         let pkg_details = config
@@ -269,10 +307,10 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
                 Library::Maven(_) => {}
             }
 
-            vec.push(i.clone())
+            dep.push(i.clone())
         }
 
-        'it2: for i in version_details.maven_files.iter(){
+        'it2: for i in version_details.maven_files.iter(){ // for forge installer
             match i {
                 Common(a) => {
                     if !rules_analyzer(a.rules.clone()){
@@ -282,120 +320,96 @@ pub async fn check_instance(config: &MetadataSetting, instance_config: &Instance
                 Library::Maven(_) => {}
             }
 
-            vec.push(i.clone())
+            dep.push(i.clone())
+        }
+        
+        if uid == "net.minecraft"{
+            default_launch_args = version_details.minecraft_arguments.clone()
         }
 
         if uid == &instance_config.top{
             main_class = version_details.main_class.clone();
+            launch_args = version_details.minecraft_arguments
         }
 
-        if let Some(client) = version_details.main_jar{
-            vec.push(Common(client.clone()));
+        if let Some(client_lib) = &version_details.main_jar{
+            dep.push(Common(client_lib.clone()));
+        }
+        
+        if let Some(index) = &version_details.asset_index{
+            asset_index = Some(index.clone());
         }
     }
-    print!("{:?}",vec);
+
     Ok(LaunchData{
         main_class:main_class.unwrap(),
-        dep:vec
+        dep,
+        asset_index:asset_index.unwrap(),
+        launch_args:launch_args.unwrap_or(default_launch_args.unwrap())
     })
 }
 
 
+/// the status of starting game
+/// 1. Stopped -> the game is not running
+/// 2. Preparing -> fetching metadata and get launch information from it.
+/// 3. Downloading -> Downloading the game file instance need.
+/// 4. Checking -> Checking the game file is valid!
+/// 5. Running -> the game is running.
+/// 6. Failed -> the game start failed!
+#[derive(Clone, Serialize)]
+#[serde(tag = "type")]
+pub enum Status{
+    Running(#[serde(skip)] Arc<CommandChild>),
+    Preparing,
+    Checking{now:Arc<AtomicI64>,total:i64}, // (the file amount has been checked, total)
+    Downloading{now:Arc<AtomicI64>,total:i64}, // (the amount of data has been download, total)
+    Stopped,
+    Failed{details:String}
+}
 
-#[cfg(test)]
-mod test{
-    use std::collections::{HashMap};
-    use std::path::PathBuf;
-    use tokio::task::{JoinSet};
-    use crate::utils::minecraft::instance::{check_instance, DownloadEntity, InstanceConfig};
-    use crate::utils::minecraft::metadata::MetadataSetting;
-    use anyhow::Result;
+pub type InstanceLock = Mutex<()>; // only one at most instance can download file at the same time.
+pub struct SafeInstanceStatus (RwLock<HashMap<String,Status>>);  // to store the status of instance
 
-
-    fn vec2hashmap(vec:Vec<(&str,&str)>) -> HashMap<String,String> {
-        let mut map = HashMap::new();
-        for (key,value) in vec.iter(){
-            map.insert(key.to_string(),value.to_string());
-        }
-        map
+impl From<HashMap<String,Status>> for SafeInstanceStatus{
+    fn from(value: HashMap<String, Status>) -> Self {
+        Self(value.into())
     }
+}
 
-    #[tokio::test]
-    #[cfg(target_arch = "x86_64")]
-    #[cfg(target_os = "linux")]
-    async fn test(){
+impl SafeInstanceStatus{
+    pub async fn update(&self, app:&AppHandle, key:&str, status: Status){
 
-        let mut metadata = MetadataSetting::default();
-        metadata.refresh().await.unwrap();
-
-        let valid_vec = vec![
-            ("net.minecraft", "1.16.5"),
-            ("org.lwjgl3", "3.2.2"),
-            ("net.fabricmc.intermediary","1.16.5"),
-            ("net.fabricmc.fabric-loader","0.15.1")
-        ];
+        instance_status_update(&app,&key,&status).await;
         
-        let instance = InstanceConfig{
-            id: "123456".to_string(),
-            name: "hello".to_string(),
-            dep: vec2hashmap(valid_vec),
-            top: "net.fabricmc.fabric-loader".to_string(),
-        };
-        
-        let path:PathBuf = "./test".into();
-        let cached = path.join("cached");
-        let lib_path = path.join("library");
-        let launch_data = check_instance(&metadata, &instance, cached).await.unwrap();
-        
-        let mut tasks: JoinSet<Result<DownloadEntity>> = JoinSet::new();
-        let downloads = launch_data.get_download_entities(lib_path.clone());
-        
-        tokio::fs::create_dir_all(lib_path.clone()).await.unwrap();
-        
-        for i in downloads{
-            println!("{:?}",i);
-            tasks.spawn(async move {
-                let res = reqwest::get(i.clone().url).await?;
-                tokio::fs::create_dir_all(i.clone().path).await.unwrap();
-                tokio::fs::write(i.clone().path.join(i.filename.clone()),res.bytes().await?).await?;
-                Ok(i)
-            });
+        {
+            let _ = &self.0.write().await.insert(key.to_string(), status); 
         }
-        
-        
-        println!("Started {} tasks. Waiting...", tasks.len());
-        let mut vec = Vec::default();
-        while let Some(res) = tasks.join_next().await{
-            if let Ok(Ok(res)) = res{
-                let path = res.path.join(res.filename);
-                vec.push(tokio::fs::canonicalize(path).await.unwrap().to_str().unwrap().to_string());
-            }else{
-                println!("{:?}",res);
-            }
+    }
+    
+    pub async fn status_str(&self, key:&str) -> String {
+        let status = &self.0.read().await;
+        let status = status.get(key).unwrap_or(&Status::Stopped);
+        match status {
+            Status::Running(_) => {"Running"}
+            Status::Preparing => {"Preparing"}
+            Status::Checking { .. } => {"Checking"}
+            Status::Downloading { .. } => {"Downloading"}
+            Status::Stopped => {"Stopped"}
+            Status::Failed { .. } => {"Failed"}
+        }.to_string()
+    }
+    
+    pub async fn can_start(&self, key:&str) -> bool {
+        let status = &self.0.read().await;
+        let status = status.get(key).unwrap_or(&Status::Stopped);
+        match status {
+            Status::Running(_) => {false}
+            Status::Preparing => {false}
+            Status::Checking { .. } => {false}
+            Status::Downloading { .. } => {false}
+            Status::Stopped => {true}
+            Status::Failed { .. } => {true}
         }
-        
-        let list = vec.join(":");
-        
-        // let time_ = Duration::from_secs(30);
-        // 
-        // let _:Result<(),()> = time::timeout(time_,async {
-        // 
-        //     let mut child = Command::new("java")
-        //         .arg("-cp")
-        //         .arg(list.clone())
-        //         .arg(launch_data.main_class)
-        //         .arg("--accessToken")
-        //         .arg("nothing here")
-        //         .arg("--version")
-        //         .arg("test")
-        //         .spawn()
-        //         .expect("this should work");
-        //     
-        //     let _ = child.wait().await.unwrap();
-        //     Err(())
-        // }).await.unwrap_or(Ok(()));// timeout error is allowed for testing!
-        
-        println!("{:?}",list);
-        tokio::fs::remove_dir_all(path).await.unwrap();
     }
 }

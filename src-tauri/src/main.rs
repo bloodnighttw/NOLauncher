@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashMap;
 use crate::command::login::{
     devicecode_exchange, devicecode_init, minecraft_profile, minecraft_token, xbox_live_auth,
     xbox_xsts_auth,
@@ -9,9 +10,10 @@ use crate::command::user::{get_current_user, get_users, logout_user, set_current
 use crate::utils::config::{NoLauncherConfig, Storage};
 use log::{LevelFilter, Log, Metadata, Record};
 use tauri::Manager;
-use tokio::sync::RwLock;
-use crate::command::instance::{create_instance, list_instance, list_versions};
+use tokio::sync::{Mutex, RwLock};
+use crate::command::instance::{create_instance, list_instance, list_versions, launch_game, get_instance_status};
 use crate::utils::minecraft::auth::{AccountList, AuthFlow, MinecraftAuthorizationFlow};
+use crate::utils::minecraft::instance::{InstanceLock, SafeInstanceStatus};
 
 mod command;
 mod event;
@@ -55,11 +57,17 @@ fn main() {
 
     #[cfg(debug_assertions)]
     let builder = builder.plugin(tauri_plugin_devtools::init());
+    let instance_status:SafeInstanceStatus = HashMap::new().into();
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(6).enable_io().enable_time().build().unwrap();
+    let lock: InstanceLock = Mutex::new(());
 
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .manage(authflow)
+        .manage(instance_status)
+        .manage(runtime)
+        .manage(lock)
         .invoke_handler(tauri::generate_handler![
             devicecode_init,
             devicecode_exchange,
@@ -73,7 +81,9 @@ fn main() {
             logout_user,
             list_versions,
             create_instance,
-            list_instance
+            list_instance,
+            launch_game,
+            get_instance_status
         ])
         .setup(|app| {
             let handle = app.handle();

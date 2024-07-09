@@ -1,17 +1,28 @@
+use crate::event::instance::StatusPayload;
 use std::collections::HashMap;
-use std::fs::read_dir;
+use std::fs::{read_dir};
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicI64;
 use async_recursion::async_recursion;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
+use crate::constant::{ASSET_ROOT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
-use crate::utils::minecraft::instance::InstanceConfig;
+use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status, FileType};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
-
+use anyhow::{anyhow, Result};
+use log::{error, info};
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use tauri_plugin_shell::ShellExt;
+use tauri::async_runtime::Receiver;
+use tokio::sync::{RwLock, Semaphore};
+use tokio::task::JoinSet;
+use crate::utils::minecraft::auth::{Account, AccountList};
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -75,11 +86,10 @@ async fn fetch_uid(
 
 #[tauri::command]
 pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandle) -> CommandResult<MinecraftInfoResponse> {
-    let lock = config;
     let mut not_up_to_date_flag = false;
 
     {
-        let mut config = lock.write().await;
+        let mut config = config.write().await;
         if !&config.metadata_setting.package_list.is_vaild() {
             let res = config.metadata_setting.refresh().await;
             if res.is_err() {
@@ -89,7 +99,7 @@ pub async fn list_versions(config: State<'_, SafeNoLauncherConfig>, app:AppHandl
         config.save_by_app(&app)?
     }
 
-    let config = lock.read().await;
+    let config = config.read().await;
     
     let default_path = app.path().app_cache_dir()?;
     let minecraft = fetch_uid(&config,&default_path,MINECRAFT_UID).await;
@@ -229,7 +239,7 @@ pub async fn create_instance(
 
     let dep ={
         let config = config.read().await;
-        let cached = app.path().cache_dir()?;
+        let cached = app.path().app_cache_dir()?;
         handle_dep(&uid, &version, p_version, &config, &cached).await
     };
 
@@ -289,6 +299,309 @@ pub async  fn list_instance(
     
     Ok(vec)
 }
+
+async fn prepare(
+    id:&str,
+    app: &AppHandle,
+    map: &SafeInstanceStatus,
+    config: &SafeNoLauncherConfig,
+) -> Result<(Vec<GameFile>,LaunchData)> // return (the game file need to launch
+{
+    map.update(&app,&id,Status::Preparing).await;
+
+    let instance_config_path = SavePath::from_data(&app,vec![&id,"instance.json"])?;
+    let instance_config = *InstanceConfig::load(instance_config_path.as_path())?;
+
+    let launch_data = {   // prepare
+        let metadata = &config.read().await.metadata_setting;
+        get_launch_data(&metadata, &instance_config, app).await?
+    };
+    
+    let game_files = launch_data.get_game_file(app).await?;
+
+    Ok((game_files,launch_data))
+}
+
+async fn download(
+    id:&str,
+    need_download:Vec<GameFile>,
+    map:&SafeInstanceStatus,
+    app:&AppHandle,
+) -> CommandResult<()>
+{
+    
+    if need_download.len() <= 0{
+        return Ok(())
+    }
+
+
+    let ai64: Arc<AtomicI64> = AtomicI64::default().into();
+    let total_size = need_download.iter()
+        .map(|x| x.size.unwrap_or(NO_SIZE_DEFAULT_SIZE))
+        .sum();
+
+    let status = Status::Downloading { now: ai64.clone(), total: total_size };
+
+    map.update(&app,&id,status).await;
+
+
+    {
+        let mut tasks = Vec::default();
+        let sem:Arc<Semaphore> = Semaphore::new(12).into();
+        
+
+        for i in need_download{
+            let sem = sem.clone();
+            let task = tauri::async_runtime::spawn(async move {
+                let _ouo = sem.acquire().await.unwrap();
+                i.download_file().await
+            });
+            
+            tasks.push(task);
+        }
+
+        let mut joinset = JoinSet::from_iter(tasks.into_iter());
+        
+        while let Some(Ok(result)) = joinset.join_next().await{
+            match result {
+                Ok(Ok(_)) => {
+                    info!("{id} download success!");
+                }
+                Ok((Err(e))) => {
+                    error!("{id} download error:{}",e)
+                }
+                Err(_) => {}
+            }
+        }
+
+        Ok(())
+    }
+}
+
+async fn running(
+    id:&str,
+    game_files:Vec<GameFile>,
+    app:&AppHandle,
+    map:&SafeInstanceStatus,
+    launch:&LaunchData,
+    userid:Option<String>
+) -> Result<Receiver<CommandEvent>>{
+    
+
+    let userlist = app.state::<RwLock<AccountList>>();
+    let user = userlist.write().await.find(&userid.unwrap_or("".to_string())).cloned().ok_or(anyhow!("no user found"))?;
+
+    info!("Running game: {:?}",user);
+    
+    let classpath = game_files.iter()
+        // we don't need asset and installer in classpath
+        .filter(|x| x.file_type != FileType::Asset)
+        .map(|x|x.get_fullpath().to_str().unwrap().to_string())
+        .collect::<Vec<String>>()
+        .join(":");// windows use ";"
+    
+    let client = game_files.iter()
+        .find(|x| x.file_type == FileType::Client).ok_or(anyhow!("No client found"))?
+        .get_fullpath();
+
+    let installer = match game_files.iter()
+        .find(|x| x.file_type == FileType::Installer)
+    {
+        None => {"no file".into()}
+        Some(temp) => {temp.get_fullpath()}
+    };
+    
+    let shell = app.shell();
+    
+    let mut command = shell.command("java");
+
+    let lib_path = LIB_PATH.to_path(&app).unwrap();
+    let assets_folder = ASSET_ROOT.to_path(&app).unwrap();
+    let game_dir = SavePath::from_data(&app,vec![&id]).unwrap();
+
+    // for forge wrapper (include neoforge)
+    let lib_path_args = &format!("-Dforgewrapper.librariesDir={}",lib_path.to_str().unwrap());
+    let installer_args = &format!("-Dforgewrapper.installer={}",installer.to_str().unwrap());
+    let client_args = &format!("-Dforgewrapper.minecraft={}",client.to_str().unwrap());
+
+    
+    let jvm_args = vec![
+        lib_path_args,
+        installer_args,
+        client_args,
+        "-cp",
+        &classpath,
+        &launch.main_class, // main class must be last one
+    ];
+    
+    println!("{:?}",jvm_args);
+
+    let launch_arg_mapping = HashMap::from([
+        ("${assets_root}",assets_folder.to_str().unwrap()),
+        ("${assets_index_name}", &launch.asset_index.id),
+        ("${game_directory}",game_dir.to_str().unwrap()),
+        ("${auth_access_token}","wtf"),
+        ("${auth_uuid}", "280796c9-bf94-4abd-98bb-f0b89be44d76"),
+        ("${user_type}","msa"),
+        ("${version_name}","test"),
+    ]);
+
+
+    for i in jvm_args{
+        command = command.arg(i);
+    }
+
+    let mut spilt = launch.launch_args.split(' ');
+    while let Some(args) = spilt.next(){
+        let mapping = launch_arg_mapping.get(args);
+        let args = match mapping {
+            None => {args}
+            Some(mapping) => {mapping}
+        };
+        
+        command = command.arg(args)
+    }
+    
+    // let (output,command_child)= shell
+    //         .command("java")
+    //         .arg("-cp")
+    //         .arg(classpath)
+    //         .arg(&launch.main_class)
+    //         .arg("--accessToken")
+    //         .arg("nothing here")
+    //         .arg("--version")
+    //         .arg("test")
+    //         .spawn()?;
+    
+    let (output,command_child) = command.spawn()?;
+    
+    let command_child:Arc<CommandChild> = command_child.into();
+    
+    let status = Status::Running(command_child.clone());
+    
+    map.update(&app,&id,status).await;
+    
+    Ok(output)
+}
+
+async fn failed(
+    id:&str,
+    app:&AppHandle,
+    details:String,
+    map:&SafeInstanceStatus
+){
+    let status = Status::Failed{details};
+    map.update(&app,&id,status).await;
+}
+
+#[tauri::command]
+pub async fn launch_game(
+    id:String,
+    app: AppHandle,
+    map: State<'_, SafeInstanceStatus>,
+    config: State<'_,SafeNoLauncherConfig>,
+    lock: State<'_, InstanceLock>,
+) -> CommandResult<()>
+{
+
+    if !map.can_start(&id).await {
+        return Ok(());
+    }
+    
+    let running_result = {
+        
+        let prepare_result = prepare(&id, &app, &map, &config).await;
+        
+        let userid = config.read().await.activate_user_uuid.clone();
+
+        let _lock = lock.lock().await;
+
+
+        let (game_files, launch_data) = match prepare_result {
+            Ok((game, launch_data)) => (game, launch_data),
+            Err(details) => {
+                failed(&id, &app, details.to_string(), &map).await;
+                return Ok(());
+            }
+        };
+
+        let need_download = {
+            let need_download: Vec<GameFile> = game_files.iter()
+                .filter(|x| !x.get_fullpath().exists())
+                .map(|x| x.clone())
+                .collect();
+
+            need_download
+        };
+
+        let download_result = download(&id, need_download, &map, &app).await;
+
+        match download_result {
+            Ok(_) => {}
+            Err(details) => {
+                failed(&id, &app, details.to_string(), &map).await;
+                return Ok(());
+            }
+        }
+
+
+        let running_result = running(&id, game_files, &app, &map, &launch_data,userid).await;
+        running_result
+    };
+    
+    let mut reciver = match running_result {
+        Ok(event) => {
+            event
+        }
+        Err(details) => {
+            failed(&id,&app,details.to_string(),&map).await;
+            return Ok(())
+        }
+    };
+
+    let mut status = None;
+    let mut signal= None;
+
+    while let Some(details) = reciver.recv().await {
+        match details {
+            CommandEvent::Stdout(content)=>{
+                info!("[{id}][STDOUT]: {}",String::from_utf8(content).unwrap())
+            }
+            CommandEvent::Terminated(message) => {
+                status = message.code;
+                signal = message.signal;
+                break;
+            }
+            CommandEvent::Stderr(e) => {
+                info!("[{id}][STDERR]: {}",String::from_utf8(e).unwrap())
+            }
+            CommandEvent::Error(e) => {
+                error!("{}",e)
+            }
+            _unknown => {}
+        }
+
+    }
+
+    if status.unwrap_or(-1) == 0{
+        map.update(&app,&id,Status::Stopped).await;
+    } else{
+        map.update(&app,&id,Status::Failed {details:format!("status:{status:?} signal:{signal:?}")}).await;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_instance_status(
+    id:String,
+    map:State<'_,SafeInstanceStatus>
+) -> CommandResult<StatusPayload>{
+    let status = map.status_str(&id).await;
+    Ok(StatusPayload { status })
+}
+
+
 
 #[cfg(test)]
 mod test{
