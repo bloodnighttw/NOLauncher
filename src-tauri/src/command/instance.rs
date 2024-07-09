@@ -399,6 +399,7 @@ async fn running(
     let mut command = shell.command("java");
     
     let assets_folder = ASSET_ROOT.to_path(&app).unwrap();
+    let game_dir = SavePath::from_data(&app,vec![&id]).unwrap();
     
     let jvm_args = vec![
         "-cp",
@@ -415,6 +416,8 @@ async fn running(
         assets_folder.to_str().unwrap(),
         "--assetIndex",
         &launch.asset_index.id,
+        "--gameDir",
+        &game_dir.to_str().unwrap(),
     ];
 
     for i in jvm_args{
