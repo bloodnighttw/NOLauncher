@@ -49,6 +49,7 @@ pub struct LaunchData{
     pub main_class: String,
     pub dep: Vec<Library>,
     pub asset_index: AssetIndex,
+    pub launch_args: String
 }
 
 impl LaunchData {
@@ -272,6 +273,8 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
     let mut dep = Vec::default();
     let mut main_class:Option<String> = None;
     let mut asset_index = None;
+    let mut launch_args = None;
+    let mut default_launch_args = None;
 
     for (uid,version) in pkg.iter(){
         let pkg_info = config
@@ -319,9 +322,14 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
 
             dep.push(i.clone())
         }
+        
+        if uid == "net.minecraft"{
+            default_launch_args = version_details.minecraft_arguments.clone()
+        }
 
         if uid == &instance_config.top{
             main_class = version_details.main_class.clone();
+            launch_args = version_details.minecraft_arguments
         }
 
         if let Some(client_lib) = &version_details.main_jar{
@@ -336,7 +344,8 @@ pub async fn get_launch_data(config: &MetadataSetting, instance_config: &Instanc
     Ok(LaunchData{
         main_class:main_class.unwrap(),
         dep,
-        asset_index:asset_index.unwrap()
+        asset_index:asset_index.unwrap(),
+        launch_args:launch_args.unwrap_or(default_launch_args.unwrap())
     })
 }
 

@@ -9,19 +9,20 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
-use crate::constant::{ASSET_ROOT, NO_SIZE_DEFAULT_SIZE};
+use crate::constant::{ASSET_ROOT, LIB_PATH, NO_SIZE_DEFAULT_SIZE};
 use crate::utils::config::{Storage, SafeNoLauncherConfig, NoLauncherConfig, Save, SavePath, Load};
 use crate::utils::minecraft::instance::{get_launch_data, InstanceLock, GameFile, InstanceConfig, LaunchData, SafeInstanceStatus, Status, FileType};
 use crate::utils::minecraft::metadata::{decode_hex};
 use crate::utils::minecraft::metadata::SHAType::SHA256;
 use crate::utils::result::CommandResult;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use log::{error, info};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri::async_runtime::Receiver;
-use tokio::sync::Semaphore;
+use tokio::sync::{RwLock, Semaphore};
 use tokio::task::JoinSet;
+use crate::utils::minecraft::auth::{Account, AccountList};
 
 const MINECRAFT_UID:&str = "net.minecraft";
 const FABRIC_UID:&str = "net.fabricmc.fabric-loader";
@@ -382,50 +383,83 @@ async fn running(
     game_files:Vec<GameFile>,
     app:&AppHandle,
     map:&SafeInstanceStatus,
-    launch:&LaunchData
+    launch:&LaunchData,
+    userid:Option<String>
 ) -> Result<Receiver<CommandEvent>>{
     
-    info!("Running game: {}",id);
 
+    let userlist = app.state::<RwLock<AccountList>>();
+    let user = userlist.write().await.find(&userid.unwrap_or("".to_string())).cloned().ok_or(anyhow!("no user found"))?;
+
+    info!("Running game: {:?}",user);
+    
     let classpath = game_files.iter()
         // we don't need asset and installer in classpath
-        .filter(|x| x.file_type != FileType::Asset && x.file_type != FileType::Installer)
+        .filter(|x| x.file_type != FileType::Asset)
         .map(|x|x.get_fullpath().to_str().unwrap().to_string())
         .collect::<Vec<String>>()
         .join(":");// windows use ";"
     
+    let client = game_files.iter()
+        .find(|x| x.file_type == FileType::Client).ok_or(anyhow!("No client found"))?
+        .get_fullpath();
+
+    let installer = match game_files.iter()
+        .find(|x| x.file_type == FileType::Installer)
+    {
+        None => {"no file".into()}
+        Some(temp) => {temp.get_fullpath()}
+    };
+    
     let shell = app.shell();
     
     let mut command = shell.command("java");
-    
+
+    let lib_path = LIB_PATH.to_path(&app).unwrap();
     let assets_folder = ASSET_ROOT.to_path(&app).unwrap();
     let game_dir = SavePath::from_data(&app,vec![&id]).unwrap();
+
+    // for forge wrapper (include neoforge)
+    let lib_path_args = &format!("-Dforgewrapper.librariesDir={}",lib_path.to_str().unwrap());
+    let installer_args = &format!("-Dforgewrapper.installer={}",installer.to_str().unwrap());
+    let client_args = &format!("-Dforgewrapper.minecraft={}",client.to_str().unwrap());
+
     
     let jvm_args = vec![
+        lib_path_args,
+        installer_args,
+        client_args,
         "-cp",
         &classpath,
         &launch.main_class, // main class must be last one
     ];
     
-    let launch_args = vec![
-        "--accessToken",
-        "nothing here",
-        "--version",
-        "test",
-        "--assetsDir",
-        assets_folder.to_str().unwrap(),
-        "--assetIndex",
-        &launch.asset_index.id,
-        "--gameDir",
-        &game_dir.to_str().unwrap(),
-    ];
+    println!("{:?}",jvm_args);
+
+    let launch_arg_mapping = HashMap::from([
+        ("${assets_root}",assets_folder.to_str().unwrap()),
+        ("${assets_index_name}", &launch.asset_index.id),
+        ("${game_directory}",game_dir.to_str().unwrap()),
+        ("${auth_access_token}","wtf"),
+        ("${auth_uuid}", "280796c9-bf94-4abd-98bb-f0b89be44d76"),
+        ("${user_type}","msa"),
+        ("${version_name}","test"),
+    ]);
+
 
     for i in jvm_args{
         command = command.arg(i);
     }
 
-    for i in launch_args {
-        command = command.arg(i);
+    let mut spilt = launch.launch_args.split(' ');
+    while let Some(args) = spilt.next(){
+        let mapping = launch_arg_mapping.get(args);
+        let args = match mapping {
+            None => {args}
+            Some(mapping) => {mapping}
+        };
+        
+        command = command.arg(args)
     }
     
     // let (output,command_child)= shell
@@ -477,6 +511,8 @@ pub async fn launch_game(
     let running_result = {
         
         let prepare_result = prepare(&id, &app, &map, &config).await;
+        
+        let userid = config.read().await.activate_user_uuid.clone();
 
         let _lock = lock.lock().await;
 
@@ -509,7 +545,7 @@ pub async fn launch_game(
         }
 
 
-        let running_result = running(&id, game_files, &app, &map, &launch_data).await;
+        let running_result = running(&id, game_files, &app, &map, &launch_data,userid).await;
         running_result
     };
     
