@@ -79,21 +79,25 @@ pub async fn exchange<R:Runtime>(
 ) -> CommandResult<ExchangeStatus> {
     
     let client = Client::new();
-    
+
     let reader = devicecode.read().await;
-    
+
     let inner = reader
         .as_ref()
-        .ok_or(anyhow!("e error"))?
+        .ok_or(anyhow!("device code is invalid!"))?
         .get_ref();
     
-    let result = inner
-        .exchange(&client, MICROSOFT_CLIENT_ID)
+    let result = inner.exchange(&client, MICROSOFT_CLIENT_ID)
         .await;
 
+    // drop reader lock to unlock the RwLock
+    drop(reader);
+    
     match result {
         Ok(data) => {
             app.manage(data);
+            let mut devicecode = devicecode.write().await;
+            *devicecode = None; // clear the device code data
             Ok(ExchangeStatus::Success)
         }
         Err(error) => {
@@ -113,7 +117,7 @@ pub async fn exchange<R:Runtime>(
 pub async fn refresh(
     devicecode: State<'_, NLDevicecode>,
 ) -> CommandResult<()>{
-    
+
     let client = Client::new();
 
     let mut devicecode = devicecode.write().await;
