@@ -1,3 +1,0 @@
-interface Config{
-    uuid: string
-}

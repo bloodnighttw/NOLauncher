@@ -1,3 +1,1 @@
-pub mod login;
-pub mod user;
-pub mod instance;
+pub mod auth;
