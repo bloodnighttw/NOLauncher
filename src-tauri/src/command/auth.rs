@@ -1,4 +1,6 @@
-mod devicecode;
+mod microsoft;
+mod xbox;
+mod minecraft;
 
 use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuth};
 use reginleif_utils::expiring_data::ExpiringData;
@@ -34,9 +36,9 @@ pub fn init<R>(builder: tauri::Builder<R>) -> tauri::Builder<R> where R:Runtime{
     })
         .invoke_handler(
             tauri::generate_handler![
-                devicecode::devicecode,
-                devicecode::exchange,
-                devicecode::refresh
+                microsoft::devicecode,
+                microsoft::exchange,
+                microsoft::refresh
             ]
         )
 }
