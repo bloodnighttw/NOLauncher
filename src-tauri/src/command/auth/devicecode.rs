@@ -5,12 +5,9 @@ use reginleif_utils::expiring_data::ExpiringData;
 use reqwest::Client;
 use serde::{Serialize};
 use tauri::{Manager, Runtime, State};
-use tokio::sync::RwLock;
+use crate::command::auth::{AuthStep, NLAuthStep, NLDevicecode};
 use crate::constant::token::MICROSOFT_CLIENT_ID;
 use crate::utils::result::CommandResult;
-
-type NLDevicecode = RwLock<Option<ExpiringData<DeviceCode>>>;
-
 
 #[derive(Debug,Clone,Serialize)]
 pub struct DevicecodeInfo{
@@ -32,8 +29,11 @@ impl From<ExpiringData<DeviceCode>> for DevicecodeInfo{
 
 #[tauri::command]
 pub async fn devicecode(
-    devicecode: State<'_, NLDevicecode>
+    devicecode: State<'_, NLDevicecode>,
+    step:State<'_,NLAuthStep>
 ) -> CommandResult<DevicecodeInfo>{
+    
+    let _lock = step.lock().await;
 
     // http client
     let client = Client::new();
@@ -75,9 +75,16 @@ pub enum ExchangeStatus{
 #[tauri::command]
 pub async fn exchange<R:Runtime>(
     devicecode: State<'_, NLDevicecode>,
+    step:State<'_,NLAuthStep>,
     app:tauri::AppHandle<R>
 ) -> CommandResult<ExchangeStatus> {
+
+    let mut _lock = step.lock().await;
     
+    if *_lock != AuthStep::Exchange{
+        return Err(anyhow!("Unexpected Step: {:?}",*_lock).into())
+    }
+
     let client = Client::new();
 
     let reader = devicecode.read().await;
@@ -86,18 +93,19 @@ pub async fn exchange<R:Runtime>(
         .as_ref()
         .ok_or(anyhow!("device code is invalid!"))?
         .get_ref();
-    
+
     let result = inner.exchange(&client, MICROSOFT_CLIENT_ID)
         .await;
 
     // drop reader lock to unlock the RwLock
     drop(reader);
-    
+
     match result {
         Ok(data) => {
             app.manage(data);
             let mut devicecode = devicecode.write().await;
             *devicecode = None; // clear the device code data
+            *_lock = AuthStep::XboxLive; // change step to xbox live
             Ok(ExchangeStatus::Success)
         }
         Err(error) => {
@@ -116,14 +124,18 @@ pub async fn exchange<R:Runtime>(
 #[tauri::command]
 pub async fn refresh(
     devicecode: State<'_, NLDevicecode>,
+    step:State<'_,NLAuthStep>,
 ) -> CommandResult<()>{
 
+    let mut _lock = step.lock().await;
+    
     let client = Client::new();
 
     let mut devicecode = devicecode.write().await;
     let data = DeviceCode::fetch(&client, MICROSOFT_CLIENT_ID).await?;
     let expiring_data = ExpiringData::from(data.clone());
     *devicecode = Some(expiring_data.clone());
+    *_lock = AuthStep::Exchange;
 
     Ok(())
 }

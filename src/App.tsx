@@ -6,7 +6,7 @@ import {Server} from "./pages/Server.tsx";
 import {ModList} from "./pages/ModList.tsx";
 import {Settings} from "./pages/Settings.tsx";
 import {Login, UserProfile} from "./pages/Login.tsx";
-import {Auth} from "./pages/Auth.tsx";
+import {Auth} from "./pages/Auth/Auth.tsx";
 import React from "react";
 import {Create} from "./pages/Create.tsx";
 
