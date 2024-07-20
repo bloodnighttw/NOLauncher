@@ -4,7 +4,7 @@ use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuthError};
 use reginleif_utils::expiring_data::ExpiringData;
 use reqwest::Client;
 use serde::{Serialize};
-use tauri::{Manager, Runtime, State};
+use tauri::{State};
 use crate::command::auth::{AuthStep, NLAuthStep, NLDevicecode};
 use crate::constant::token::MICROSOFT_CLIENT_ID;
 use crate::utils::result::CommandResult;
@@ -94,10 +94,9 @@ pub enum ExchangeStatus{
 
 
 #[tauri::command]
-pub async fn exchange<R:Runtime>(
+pub async fn exchange(
     devicecode: State<'_, NLDevicecode>,
-    step:State<'_,NLAuthStep>,
-    app:tauri::AppHandle<R>
+    step:State<'_,NLAuthStep>
 ) -> CommandResult<ExchangeStatus> {
 
     let mut _lock = step.lock().await;
@@ -123,10 +122,9 @@ pub async fn exchange<R:Runtime>(
 
     match result {
         Ok(data) => {
-            app.manage(data);
             let mut devicecode = devicecode.write().await;
-            *devicecode = None; // clear the device code data
-            *_lock = AuthStep::XboxLive; // change step to xbox live
+            *devicecode = None; // clear the device code data since it's no longer valid
+            *_lock = AuthStep::XboxLive(data); // change step to xbox live
             Ok(ExchangeStatus::Success)
         }
         Err(error) => {

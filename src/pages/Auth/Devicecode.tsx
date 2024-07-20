@@ -76,11 +76,26 @@ export function Devicecode() {
         }).catch(console.error)
     }
 
+    const xbox_live = () => {
+        setMessage("Fetching XBOX Live data...")
+        invoke("xbox_live").then(()=> {
+            console.log("XBOX LiveDone")
+            xbox_security()
+        }).catch(console.error)
+    }
+
+    const xbox_security = () => {
+        setMessage("Fetching XBOX Security data...")
+        invoke("xbox_security").then(()=> {
+            console.log("XBOX Security Done")
+        }).catch(console.error)
+    }
+
     const exchange_loop = () => {
         setMessage("Waiting user to complete auth flow......")
         invoke<ExchangePayload>("exchange").then((data) => {
             if (data.action === "Success") {
-
+                xbox_live()
             } else
                 exchange.current = setTimeout(() => {
                     exchange_loop()

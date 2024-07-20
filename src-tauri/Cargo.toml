@@ -25,9 +25,9 @@ tauri-plugin-devtools = "2.0.0-beta"
 rand = "0.8.5"
 uuid = { version = "1.8.0", features = ["v4"] }
 futures-util = "0.3.30"
-reginleif = "0.2.1"
-reginleif-utils = "0.2.1"
-reginleif-macro = "0.2.1"
+reginleif = "0.2.2"
+reginleif-utils = "0.2.2"
+reginleif-macro = "0.2.2"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

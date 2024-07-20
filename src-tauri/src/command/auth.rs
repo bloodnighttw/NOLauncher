@@ -3,24 +3,24 @@ mod xbox;
 mod minecraft;
 
 use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuth};
+use reginleif::auth::xbox::{XboxLiveToken, XboxSecurityToken};
 use reginleif_utils::expiring_data::ExpiringData;
 
 use tauri::{Manager, Runtime};
 use tokio::sync::{Mutex, RwLock};
 
 type NLDevicecode = RwLock<Option<ExpiringData<DeviceCode>>>;
-type NLMicrosoftAuth = RwLock<Option<ExpiringData<MicrosoftAuth>>>;
 
-#[derive(Debug, Clone,Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AuthStep{
     /// wait for user to auth
     Exchange,
     /// fetching xbox live token
-    XboxLive,
+    XboxLive(ExpiringData<MicrosoftAuth>),
     /// fetching xbox security token
-    XboxSecurity,
+    XboxSecurity(ExpiringData<MicrosoftAuth>,XboxLiveToken),
     /// fetching minecraft profile and token
-    Minecraft,
+    Minecraft(ExpiringData<MicrosoftAuth>,XboxSecurityToken),
 }
 
 pub type NLAuthStep = Mutex<AuthStep>;
@@ -38,7 +38,9 @@ pub fn init<R>(builder: tauri::Builder<R>) -> tauri::Builder<R> where R:Runtime{
             tauri::generate_handler![
                 microsoft::devicecode,
                 microsoft::exchange,
-                microsoft::refresh
+                microsoft::refresh,
+                xbox::xbox_live,
+                xbox::xbox_security,
             ]
         )
 }
