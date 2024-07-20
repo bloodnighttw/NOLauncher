@@ -64,6 +64,27 @@ pub async fn devicecode(
     Ok(devicecode.into())
 }
 
+
+#[tauri::command]
+pub async fn refresh(
+    devicecode: State<'_, NLDevicecode>,
+    step:State<'_,NLAuthStep>,
+) -> CommandResult<DevicecodeInfo>{
+
+    let mut _lock = step.lock().await;
+
+    let client = Client::new();
+
+    let mut devicecode = devicecode.write().await;
+    let data = DeviceCode::fetch(&client, MICROSOFT_CLIENT_ID).await?;
+    let expiring_data = ExpiringData::from(data.clone());
+    *devicecode = Some(expiring_data.clone());
+    *_lock = AuthStep::Exchange;
+
+    Ok(expiring_data.into())
+}
+
+
 #[derive(Debug,Clone,Serialize)]
 #[serde(tag = "action", content = "second")]
 pub enum ExchangeStatus{
@@ -119,23 +140,4 @@ pub async fn exchange<R:Runtime>(
             }
         }
     }
-}
-
-#[tauri::command]
-pub async fn refresh(
-    devicecode: State<'_, NLDevicecode>,
-    step:State<'_,NLAuthStep>,
-) -> CommandResult<()>{
-
-    let mut _lock = step.lock().await;
-    
-    let client = Client::new();
-
-    let mut devicecode = devicecode.write().await;
-    let data = DeviceCode::fetch(&client, MICROSOFT_CLIENT_ID).await?;
-    let expiring_data = ExpiringData::from(data.clone());
-    *devicecode = Some(expiring_data.clone());
-    *_lock = AuthStep::Exchange;
-
-    Ok(())
 }
