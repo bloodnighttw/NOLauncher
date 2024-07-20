@@ -1,15 +1,20 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+extern crate core;
 
 use crate::command::{auth};
 use log::{LevelFilter, Log, Metadata, Record};
+
+use crate::utils::module::ModuleExtend;
+use crate::utils::accounts;
 
 mod utils;
 mod constant;
 mod command;
 
 struct Logger;
-use crate::utils::module::ModuleExtend;
+
+
 
 impl Log for Logger {
     fn enabled(&self, _meta: &Metadata) -> bool {
@@ -47,6 +52,8 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .module(auth::init)
+        .module(accounts::init)
+        .expand()
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

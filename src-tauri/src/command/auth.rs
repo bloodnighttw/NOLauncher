@@ -6,8 +6,9 @@ use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuth};
 use reginleif::auth::xbox::{XboxLiveToken, XboxSecurityToken};
 use reginleif_utils::expiring_data::ExpiringData;
 
-use tauri::{Manager, Runtime};
+use tauri::{App, Manager, Runtime};
 use tokio::sync::{Mutex, RwLock};
+use crate::utils::module::BuilderWrapper;
 
 type NLDevicecode = RwLock<Option<ExpiringData<DeviceCode>>>;
 
@@ -25,15 +26,18 @@ pub enum AuthStep{
 
 pub type NLAuthStep = Mutex<AuthStep>;
 
-pub fn init<R>(builder: tauri::Builder<R>) -> tauri::Builder<R> where R:Runtime{
-    builder.setup(|app| {
-        // to init the device code data in the app
-        let data:Option<ExpiringData<DeviceCode>> = None;
-        let step:NLAuthStep = AuthStep::Exchange.into();
-        app.manage(RwLock::from(data));
-        app.manage(step);
-        Ok(())
-    })
+pub fn init<R>(wrapper: BuilderWrapper<R>) -> BuilderWrapper<R>
+where
+    R:Runtime{
+    wrapper
+        .setup(|app:&&mut App<R>|{
+            // to init the device code data in the app
+            let data:Option<ExpiringData<DeviceCode>> = None;
+            let step:NLAuthStep = AuthStep::Exchange.into();
+            app.manage(RwLock::from(data));
+            app.manage(step);
+            Ok(())
+        })
         .invoke_handler(
             tauri::generate_handler![
                 microsoft::devicecode,
