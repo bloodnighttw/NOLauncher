@@ -14,7 +14,7 @@ use tauri::{App, Manager, Runtime};
 use crate::utils::module::BuilderWrapper;
 
 #[derive(Default,Debug,Serialize,Deserialize,Storage)]
-#[base_on(ConfigStorePoint)] #[filepath(&["test.txt"])]
+#[base_on(ConfigStorePoint)] #[filepath(&["accounts.txt"])]
 struct AccountMapping(String,HashMap<String,Account>);
 
 #[derive(Debug,Default)]
@@ -29,8 +29,8 @@ impl NLAccounts {
 
     pub async fn add(&self,account: Account,path:&ConfigStorePoint) -> Result<()>{
         let mut writer = self.0.write().await;
-        writer.save(&path)?;
         writer.1.insert(account.profile.id.clone(),account);
+        writer.save(&path)?;
         Ok(())
     }
 
