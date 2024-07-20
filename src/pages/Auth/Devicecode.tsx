@@ -45,8 +45,8 @@ export function Devicecode() {
     const [message, setMessage] = useState("Fetching device code...")
     const [lock, setLock] = useState(true)
 
-    const exchange = useRef<number | null>(null);
-    const update = useRef<number | null>(null);
+    const exchange = useRef<number | null>(null); // the id of setTimeout that check device code status
+    const update = useRef<number | null>(null); // the id of setTimeout that device code will expire
 
     const cleanup = () => {
         if (exchange.current) {
@@ -76,6 +76,18 @@ export function Devicecode() {
         }).catch(console.error)
     }
 
+    const exchange_loop = () => {
+        setMessage("Waiting user to complete auth flow......")
+        invoke<ExchangePayload>("exchange").then((data) => {
+            if (data.action === "Success")
+                xbox_live()
+            else
+                exchange.current = setTimeout(() => {
+                    exchange_loop()
+                }, data.second * 1000)
+        }).catch(console.error)
+    }
+
     const xbox_live = () => {
         setMessage("Fetching XBOX Live data...")
         invoke("xbox_live").then(()=> {
@@ -88,18 +100,15 @@ export function Devicecode() {
         setMessage("Fetching XBOX Security data...")
         invoke("xbox_security").then(()=> {
             console.log("XBOX Security Done")
+            account_check()
         }).catch(console.error)
     }
 
-    const exchange_loop = () => {
-        setMessage("Waiting user to complete auth flow......")
-        invoke<ExchangePayload>("exchange").then((data) => {
-            if (data.action === "Success") {
-                xbox_live()
-            } else
-                exchange.current = setTimeout(() => {
-                    exchange_loop()
-                }, data.second * 1000)
+    const account_check = ()=>{
+        setMessage("Fetching Your Account Data...")
+        invoke("account").then(()=> {
+            setMessage("Done! You can close this window now!")
+            console.log("XBOX Security Done")
         }).catch(console.error)
     }
 
