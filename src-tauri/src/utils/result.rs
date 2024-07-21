@@ -26,6 +26,7 @@
 //! SOFTWARE.
 
 use std::io::Error;
+use reginleif::auth::xbox::XboxSecurityError;
 use serde::Serialize;
 
 // Just extending the `anyhow::Error`
@@ -73,6 +74,22 @@ impl From<tauri::Error> for CommandError {
     fn from(value: tauri::Error) -> Self {
         Self {
             status: "error".to_string(),
+            error: value.into()
+        }
+    }
+}
+
+impl From<XboxSecurityError> for CommandError{
+    fn from(value: XboxSecurityError) -> Self {
+        let error = match &value {
+            XboxSecurityError::NotExist => {"NotExist"}
+            XboxSecurityError::CountryBan => {"CountryBan"}
+            XboxSecurityError::NeedAdultVerification => {"NeedAdultVerification"}
+            XboxSecurityError::AddToFamily => {"AddToFamily"}
+            _other => {"error"}
+        };
+        Self{
+            status: error.to_string(),
             error: value.into()
         }
     }

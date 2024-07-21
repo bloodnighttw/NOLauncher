@@ -24,12 +24,7 @@ pub async fn account(
 
     let client = Client::new();
 
-    let minecraft_auth = match MinecraftAuth::fetch(&client,xbox_security).await{
-        Ok(data) => {data}
-        Err(err) => {
-            return Err(anyhow!(err).into());
-        }
-    };
+    let minecraft_auth =  MinecraftAuth::fetch(&client,xbox_security).await?;
 
     let profile = Profile::fetch(&client,&minecraft_auth).await?;
 

@@ -38,12 +38,7 @@ pub async fn xbox_security(
 
     let client = Client::new();
 
-    let xbox_security = match XboxSecurityToken::fetch(&client,xbox_live).await{
-        Ok(data) => {data}
-        Err(err) => {
-            return Err(anyhow!(err).into());
-        }
-    };
+    let xbox_security = XboxSecurityToken::fetch(&client,xbox_live).await?;
 
     *lock = AuthStep::Minecraft(msa_token,xbox_security);
 
