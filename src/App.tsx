@@ -1,4 +1,4 @@
-import SideBar from "./component/SideBar.tsx";
+import SideBar from "./component/Sidebar/SideBar.tsx";
 import "./index.css";
 import {Route, Routes} from "react-router-dom";
 import {Home} from "./pages/Home.tsx";
@@ -25,7 +25,7 @@ export function Content(props: ContentProps) {
 
 export default function App() {
     return (
-        <div className="flex flex-row">
+        <div className="flex flex-row relative">
             <SideBar/>
             <Content>
                 <Routes>
@@ -41,6 +41,23 @@ export default function App() {
                     <Route path="/auth" element={<Auth/>}/>
                 </Routes>
             </Content>
+            <div
+                className="absolute bg-error w-24 bottom-1 left-0 mx-20 rounded my-4 p-2 flex flex-col-reverse shadow-lg">
+                <div>123</div>
+                <div>123</div>
+                <div>123</div>
+                <div>1232222222222222</div>
+            </div>
+
+            <div
+                className="absolute bg-primary opacity-10 bottom-1 left-0 mx-20 rounded my-4 p-2 flex flex-col-reverse shadow-lg">
+                <div>123</div>
+                <div>123</div>
+                <div>123</div>
+                <div>1232222222222222</div>
+                <div>1232222222222222</div>
+                <div>1232222222222222</div>
+            </div>
         </div>
 
     );
