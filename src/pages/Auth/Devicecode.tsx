@@ -1,6 +1,8 @@
 import {CharBox} from "../../component/CharBox.tsx";
 import {useEffect, useRef, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
+import {open} from '@tauri-apps/plugin-shell'
+import {writeText} from "@tauri-apps/plugin-clipboard-manager";
 
 // #[derive(Debug,Clone,Serialize)]
 // pub struct DevicecodeInfo{
@@ -61,6 +63,12 @@ export function Devicecode() {
     const update = useRef<number | null>(null); // the id of setTimeout that device code will expire
     const lock = useRef(false)
 
+    const open_browser = () => {
+        open(devicecode!!.url).catch(console.error)
+        writeText(devicecode!!.code).catch(console.error)
+    }
+
+
     const cleanup = () => {
         if (exchange.current) {
             clearTimeout(exchange.current)
@@ -87,10 +95,9 @@ export function Devicecode() {
 
     }
 
+    const delay = (ms:number) => new Promise(res => setTimeout(res, ms));
 
     const refresh_token = async () =>{
-
-        const delay = (ms:number) => new Promise(res => setTimeout(res, ms));
 
         cleanup()
         setStatus(Status.Lock)
@@ -100,6 +107,7 @@ export function Devicecode() {
         while (lock.current){
             await delay(100)
         } // wait until the lock is released
+        lock.current = true
         invoke<DevicecodePayload>("refresh").then((data)=>{
             setStatus(Status.Unlock)
             update.current = setTimeout(()=>{
@@ -110,10 +118,19 @@ export function Devicecode() {
             exchange.current = setTimeout(() => {
                 exchange_loop()
             }, 5 * 1000)
-        }).catch((error)=>handle_error(error,"Error while refresh the devicecode token!"))
+            lock.current = false
+        }).catch((error)=> {
+            lock.current=false
+            handle_error(error, "Error while refresh the devicecode token!")
+        })
     }
 
-    const exchange_loop = () => {
+    const exchange_loop = async () => {
+
+        while (lock.current){
+            await delay(100)
+        } // wait until the lock is released
+
         lock.current = true
         setMessage("Waiting user to complete auth flow......")
         invoke<ExchangePayload>("exchange").then((data) => {
@@ -202,10 +219,10 @@ export function Devicecode() {
         <CharBox chars={devicecode?.code} enable={!status}/>
         <div className="flex flex-row px-2 gap-2">
             {status == Status.Lock ||  status == Status.Unlock ?<span className="loading loading-spinner loading-xs"></span>:null}
-            <h1 className="">{message}</h1>
+            <h1 className={status == Status.Error?"text-error":""}>{message}</h1>
         </div>
         <div className="flex flex-row-reverse p-2">
-            <button disabled={status!=Status.Unlock} className="btn outline outline-1 w-full bg-base-100">Open Link in browser</button>
+            <button disabled={status!=Status.Unlock} onClick={open_browser} className="btn outline outline-1 w-full bg-base-100">Copy code and Open Link in browser</button>
         </div>
 
     </div>
