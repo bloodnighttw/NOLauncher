@@ -1,4 +1,3 @@
-import "../index.css";
 import {Link, useLocation} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
@@ -177,7 +176,7 @@ export default function SideBar() {
     return (
 
         <aside data-tauri-drag-region={true}
-               className="flex flex-col items-center w-20 h-screen py-4 overflow-y-auto bg-base-100 overflow-hidden gap-4">
+               className="flex flex-col items-center h-screen p-4 overflow-y-auto bg-base-100 overflow-hidden gap-4 flex-none">
             <div className="flex flex-col flex-1 gap-4" data-tauri-drag-region={true}>
                 {btnList.map((btn, index) => (
 
