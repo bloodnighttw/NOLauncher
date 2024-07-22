@@ -10,12 +10,12 @@ export interface Account{
 
 interface AccountsState{
     userNow: string | undefined;
-    accounts: Map<string, Account>; // id -> Account
+    accounts: Account[]; // id -> Account
 }
 
 const initialState: AccountsState = {
     userNow: undefined,
-    accounts: new Map<string, Account>()
+    accounts: []
 }
 
 
@@ -24,22 +24,37 @@ const accountSlice = createSlice({
     initialState,
     reducers: {
         switchAccount: (state, action:PayloadAction<string>) => { // string is id of account
-            invoke("switch").catch(console.error)
+            invoke("switch",{payload:action.payload}).catch(console.error)
             state.userNow = action.payload;
         },
         addAccount: (state, action:PayloadAction<Account>) => {
-            state.accounts.set(action.payload.id, action.payload);
+            let arr = []            
+            for (let old of state.accounts){
+                if (old.id !== action.payload.id){ // to prevent duplicate account
+                    arr.push(old);
+                }
+            }
+
+            arr.push(action.payload);
+
+            state.accounts = arr;
+
         },
         logoutAccount: (state, action:PayloadAction<string>) => { // string is id of account
 
             invoke('logout',{payload:action.payload}).catch(console.error);
-            state.accounts.delete(action.payload);
+            let arr = []
+            for (let account of state.accounts){
+                if (account.id !== action.payload){
+                    arr.push(account);
+                }
+            }
+            
+            state.accounts = arr;
 
         },
         initAccount: (state,action:PayloadAction<Account[]>) => {
-            for (let account of action.payload){
-                state.accounts.set(account.id, account);
-            }
+            state.accounts = action.payload;
         }
     }
 })
