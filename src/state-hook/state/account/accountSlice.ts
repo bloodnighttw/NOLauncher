@@ -24,6 +24,7 @@ const accountSlice = createSlice({
     initialState,
     reducers: {
         switchAccount: (state, action:PayloadAction<string>) => { // string is id of account
+            invoke("switch").catch(console.error)
             state.userNow = action.payload;
         },
         addAccount: (state, action:PayloadAction<Account>) => {
