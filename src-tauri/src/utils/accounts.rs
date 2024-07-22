@@ -15,14 +15,14 @@ use reginleif_utils::expiring_data::Refreshable;
 #[base_on(ConfigStorePoint)] #[filepath(&["accounts.txt"])]
 struct AccountMapping(String,HashMap<String,Account>);
 
-#[derive(Debug,Default)]
-pub struct NLAccounts(RwLock<AccountMapping>);
+#[derive(Debug)]
+pub struct NLAccounts(RwLock<AccountMapping>,ConfigStorePoint);
 
 impl NLAccounts {
 
     pub async fn load(base:&ConfigStorePoint) -> Result<Self>{
         let data = AccountMapping::load(base)?;
-        Ok(Self(data.into()))
+        Ok(Self(data.into(),base.clone()))
     }
 
     pub async fn add(&self,account: Account,path:&ConfigStorePoint) -> Result<()>{
@@ -48,7 +48,8 @@ impl NLAccounts {
         reader.1.get(id).cloned()
     }
 
-    pub async fn get_latest(&mut self,id:&str,config:ConfigStorePoint) -> Result<Option<Account>>{
+    pub async fn get_latest(&mut self,id:&str) -> Result<Option<Account>>{
+        let config = &self.1;
         let mut writer = self.0.write().await;
         let data = writer.1.get_mut(id);
         let mut changed = false;
@@ -64,7 +65,7 @@ impl NLAccounts {
             None => Ok(None)
         };
         if changed{
-            writer.save(&config)?;
+            writer.save(config)?;
         }
         data
     }

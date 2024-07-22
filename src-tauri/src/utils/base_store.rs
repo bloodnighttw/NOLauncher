@@ -46,7 +46,7 @@ impl TryFrom<&AppHandle> for InstanceStorePoint {
     }
 }
 
-#[derive(BaseStorePoint, Clone)]
+#[derive(BaseStorePoint, Clone, Debug)]
 pub struct ConfigStorePoint(PathBuf);
 
 impl <R> TryFrom<&&mut tauri::App<R>> for ConfigStorePoint
