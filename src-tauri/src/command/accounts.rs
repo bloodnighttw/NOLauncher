@@ -1,5 +1,5 @@
 mod info;
-mod logout;
+mod control;
 
 use tauri::{App, Manager, Runtime};
 
@@ -21,6 +21,9 @@ where
         })
         .invoke_handler(tauri::generate_handler![
             info::accounts_list,
+            info::accounts_now,
+            control::logout,
+            control::switch
         ])
     
 }

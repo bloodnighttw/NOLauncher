@@ -36,6 +36,20 @@ impl NLAccounts {
         Ok(())
     }
 
+    pub async fn switch(&self,id: &str) -> Result<()>{
+        let mut writer = self.0.write().await;
+        writer.0 = id.to_string();
+        writer.save(&self.1)?;
+        Ok(())
+    }
+
+    pub async fn logout(&self,id: &str) -> Result<()>{
+        let mut writer = self.0.write().await;
+        writer.1.remove(id);
+        writer.save(&self.1)?;
+        Ok(())
+    }
+
     pub async fn list(&self) -> Vec<Account>{
         let reader = self.0.read().await;
         reader.1.values().cloned().collect()
@@ -52,10 +66,11 @@ impl NLAccounts {
         reader.1.get(id).cloned()
     }
 
-    pub async fn get_latest(&mut self,id:&str) -> Result<Option<Account>>{
+    pub async fn me_latest(&mut self) -> Result<Option<Account>>{
         let config = &self.1;
         let mut writer = self.0.write().await;
-        let data = writer.1.get_mut(id);
+        let id = writer.0.clone();
+        let data = writer.1.get_mut(&id);
         let mut changed = false;
         let data = match data {
             Some(account) => {
@@ -76,3 +91,19 @@ impl NLAccounts {
 
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct AccountPayload{
+    pub id:String,
+    pub name:String,
+    pub skin:String    
+}
+
+impl From<&Account> for AccountPayload{
+    fn from(value: &Account) -> Self {
+        Self{
+            id:value.profile.id.clone(),
+            name:value.profile.name.clone(),
+            skin:value.profile.skins.iter().find(|x| x.state == "ACTIVE").unwrap().url.clone()
+        }
+    }
+}

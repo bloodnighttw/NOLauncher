@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { invoke } from "@tauri-apps/api/core";
 
 
 export interface Account{
@@ -28,12 +29,9 @@ const accountSlice = createSlice({
         addAccount: (state, action:PayloadAction<Account>) => {
             state.accounts.set(action.payload.id, action.payload);
         },
-        logoutAccount: (state, action:PayloadAction<string>) => {
+        logoutAccount: (state, action:PayloadAction<string>) => { // string is id of account
 
-            if(action.payload === state.userNow){
-                state.userNow = undefined;
-            }
-
+            invoke('logout',{payload:action.payload}).catch(console.error);
             state.accounts.delete(action.payload);
 
         },
