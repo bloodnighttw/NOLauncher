@@ -2,6 +2,9 @@ import {Link, useLocation} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
 import {invoke} from "@tauri-apps/api/core";
+import { useDispatch } from "react-redux";
+import { Account, initAccount } from "../../state-hook/state/account/accountSlice";
+import { openSidePanel } from "../../state-hook/state/side-panel/accountListSlice";
 
 const homeSVG = (
     <svg
@@ -142,26 +145,14 @@ function identifyLink(args: any) {
 
 export default function SideBar() {
     let location = useLocation();
-    let [user, setUser] = useState<UUIDPayload | null>(null);
     let [menu, setMenu] = useState<boolean>(false);
-    const [users, setUsers] = useState<Array<Profile>>([])
+    const dispatch = useDispatch();
+    
 
-
-    let work = async () => {
-        await listen<UUIDPayload>("change_user", (event) => {
-            setUser(event.payload);
-        });
-    }
 
     useEffect(() => {
-        work().catch(console.error);
-        invoke("get_current_user").then((res) => {
-            setUser({
-                uuid: res as string
-            });
-            console.log(res)
-        })
-    }, [setUser])
+        invoke<Account[]>("accounts_list").then((payload) => dispatch(initAccount(payload))).catch(console.error)
+    }, [])
 
     const selected = "p-1.5 bg-base-300 rounded-md transition-transform duration-200";
     const notSelect = "p-1.5 hover:bg-base-300 duration-200 rounded-md active:scale-90";
@@ -208,71 +199,17 @@ export default function SideBar() {
             <div className="flex flex-col">
                 <div
                     className="p-1.5 duration-200 rounded-md"
-                    onClick={() => {
-                        invoke<Array<Profile>>("get_users").then((res) => {
-                            setUsers(res)
-                        }).catch(console.error)
-                        setMenu(true)
-                    }}
-                    onMouseLeave={() => setMenu(false)}
+                    onClick={()=>{dispatch(openSidePanel())}}
                 >
 
-                    {
+                {noaccount}
+
+                    {/* {
                         user == null ? noaccount
                             : <UserImage id={user?.uuid}/>
-                    }
+                    } */}
 
 
-                    <div className={menu ? show : notShow}>
-                        <div className="dropdown-content z-[1000] shadow-lg bg-base-100 rounded-md w-96">
-                            <div className="max-h-80 overflow-y-auto p-3">
-                                <div
-                                    className="bg-base-100 flex-col space-y-1.5">
-
-                                    {users.map((profile, _) => (
-
-                                        <div className={user?.uuid == profile.id ? userNotSelect : userSelect}>
-                                            <div className="flex-1"
-                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}
-                                            ><img className="w-6 h-6 rounded-sm" src={"https://crafatar.com/avatars/" + profile.id}/>
-                                            </div>
-                                            <div className="grow"
-                                                 onClick={() => invoke("set_current_user", {id: profile.id}).catch(console.error)}>{profile.name}</div>
-
-                                            <div
-                                                className="text-right flex-none active:scale-90 duration-200">
-                                                <Link
-                                                    to={"/login/" + profile.id}
-                                                >
-                                                    {setting}
-
-                                                </Link>
-
-                                            </div>
-                                            <div
-                                                className="text-right flex-none active:scale-90 duration-200"
-                                                onClick={() => invoke("logout_user", {id: profile.id}).catch(console.error)}
-                                            >{logout}</div>
-                                        </div>
-
-
-                                    ))}
-
-
-                                    <Link className={userSelect + " justify-center active:scale-90"}
-                                          to="/auth"
-                                    >
-                                        <div
-                                            className="text-left flex-none active:scale-90 duration-200">{newAccont}</div>
-                                    </Link>
-
-
-                                </div>
-
-
-                            </div>
-                        </div>
-                    </div>
 
                 </div>
             </div>

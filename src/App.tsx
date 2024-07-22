@@ -9,6 +9,7 @@ import {Login, UserProfile} from "./pages/Login.tsx";
 import {Auth} from "./pages/Auth/Auth.tsx";
 import React from "react";
 import {Create} from "./pages/Create.tsx";
+import AccountPanel from "./component/Sidebar/AccountPanel.tsx";
 
 interface ContentProps {
     children?: React.ReactNode; // 👈️ for demo purposes
@@ -41,23 +42,7 @@ export default function App() {
                     <Route path="/auth" element={<Auth/>}/>
                 </Routes>
             </Content>
-            <div
-                className="absolute bg-error w-24 bottom-1 left-0 mx-20 rounded my-4 p-2 flex flex-col-reverse shadow-lg">
-                <div>123</div>
-                <div>123</div>
-                <div>123</div>
-                <div>1232222222222222</div>
-            </div>
-
-            <div
-                className="absolute bg-primary opacity-10 bottom-1 left-0 mx-20 rounded my-4 p-2 flex flex-col-reverse shadow-lg">
-                <div>123</div>
-                <div>123</div>
-                <div>123</div>
-                <div>1232222222222222</div>
-                <div>1232222222222222</div>
-                <div>1232222222222222</div>
-            </div>
+            <AccountPanel/>
         </div>
 
     );
