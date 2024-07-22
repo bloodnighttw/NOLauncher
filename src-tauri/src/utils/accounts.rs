@@ -29,10 +29,11 @@ impl NLAccounts {
         Ok(Self(data.into(),base.clone()))
     }
 
-    pub async fn add(&self,account: Account,path:&ConfigStorePoint) -> Result<()>{
+    pub async fn add(&self,account: Account) -> Result<()>{
         let mut writer = self.0.write().await;
+        let config = &self.1;
         writer.1.insert(account.profile.id.clone(),account);
-        writer.save(path)?;
+        writer.save(&config)?;
         Ok(())
     }
 

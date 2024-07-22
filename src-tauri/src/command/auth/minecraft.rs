@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use anyhow::anyhow;
 use reginleif::auth::account::Account;
 use reginleif::auth::minecraft::{MinecraftAuth, Profile};
@@ -7,13 +6,11 @@ use tauri::State;
 use crate::command::auth::{AuthStep, NLAuthStep};
 use crate::utils::result::CommandResult;
 use crate::utils::accounts::{AccountPayload, NLAccounts};
-use crate::utils::base_store::ConfigStorePoint;
 
 #[tauri::command]
 pub async fn account(
     step:State<'_,NLAuthStep>,
     accounts:State<'_,NLAccounts>,
-    config:State<'_,ConfigStorePoint>
 ) -> CommandResult<AccountPayload>{
     let mut lock = step.lock().await;
 
@@ -31,7 +28,7 @@ pub async fn account(
     let account:Account = (minecraft_auth,profile.clone(),msa_token).into();
     let payload = AccountPayload::from(&account);
 
-    accounts.add(account,config.deref()).await?;
+    accounts.add(account).await?;
 
     *lock = AuthStep::Exchange; // reset auth step
 
