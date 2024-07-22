@@ -3,6 +3,8 @@ import {useEffect, useRef, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-shell'
 import {writeText} from "@tauri-apps/plugin-clipboard-manager";
+import { Account, addAccount } from "../../state-hook/state/account/accountSlice.ts";
+import { useDispatch } from "react-redux";
 
 // #[derive(Debug,Clone,Serialize)]
 // pub struct DevicecodeInfo{
@@ -58,6 +60,7 @@ export function Content() {
     const [devicecode, setDevicecode] = useState<DevicecodePayload | null>(null)
     const [message, setMessage] = useState("Fetching device code...")
     const [status, setStatus] = useState(Status.Lock)
+    const dispatch = useDispatch()
 
     const exchange = useRef<number | null>(null); // the id of setTimeout that check device code status
     const update = useRef<number | null>(null); // the id of setTimeout that device code will expire
@@ -168,7 +171,8 @@ export function Content() {
     const account_check = ()=>{
         setStatus(Status.Lock)
         setMessage("Fetching Your Account Data...")
-        invoke("account").then(()=> {
+        invoke<Account>("account").then((account)=> {
+            dispatch(addAccount(account))
             setStatus(Status.Done)
             setMessage("Done! You can close this window now!")
             console.log("XBOX Security Done")
