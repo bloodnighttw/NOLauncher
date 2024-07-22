@@ -6,7 +6,7 @@ use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuth};
 use reginleif::auth::xbox::{XboxLiveToken, XboxSecurityToken};
 use reginleif_utils::expiring_data::ExpiringData;
 
-use tauri::{Runtime};
+use tauri::Runtime;
 use tokio::sync::{Mutex, RwLock};
 use crate::utils::module::BuilderWrapper;
 

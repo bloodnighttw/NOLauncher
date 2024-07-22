@@ -3,10 +3,10 @@
 extern crate core;
 
 use crate::command::auth;
+use command::accounts;
 use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::utils::module::ModuleExtend;
-use crate::utils::accounts;
 
 mod utils;
 mod constant;

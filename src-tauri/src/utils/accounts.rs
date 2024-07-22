@@ -10,8 +10,6 @@ use crate::constant::token::MICROSOFT_CLIENT_ID;
 use anyhow::Result;
 use reginleif_utils::save_path::Store;
 use reginleif_utils::expiring_data::Refreshable;
-use tauri::{App, Manager, Runtime};
-use crate::utils::module::BuilderWrapper;
 
 #[derive(Default,Debug,Serialize,Deserialize,Storage)]
 #[base_on(ConfigStorePoint)] #[filepath(&["accounts.txt"])]
@@ -73,20 +71,3 @@ impl NLAccounts {
 
 }
 
-
-pub fn init<R>(wrapper: BuilderWrapper<R>) -> BuilderWrapper<R>
-where
-    R:Runtime{
-    wrapper
-        .setup(|app:&&mut App<R>|{
-            // to init the device code data in the app
-            tauri::async_runtime::block_on(async {    // added this line
-                let config_path = ConfigStorePoint::try_from(app).unwrap();
-                let accounts = NLAccounts::load(&config_path).await.unwrap_or(NLAccounts::default());
-                app.manage(accounts);
-                app.manage(config_path);
-                Ok::<(), anyhow::Error>(())
-            }).expect("WTF");
-            Ok(())
-        })
-}
