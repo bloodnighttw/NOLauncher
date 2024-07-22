@@ -13,16 +13,14 @@ where
                 // to init the device code data in the app
             tauri::async_runtime::block_on(async {    // added this line
                 let config_path = ConfigStorePoint::try_from(app).unwrap();
-                let accounts = NLAccounts::load(&config_path).await.unwrap_or(NLAccounts::default());
+                let accounts = NLAccounts::load(&config_path).await.unwrap_or(NLAccounts::default(config_path));
                 app.manage(accounts);
-                app.manage(config_path);
                 Ok::<(), anyhow::Error>(())
             }).expect("WTF");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-
-
+            info::accounts_list,
         ])
     
 }

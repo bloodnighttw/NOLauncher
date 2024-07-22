@@ -20,6 +20,10 @@ pub struct NLAccounts(RwLock<AccountMapping>,ConfigStorePoint);
 
 impl NLAccounts {
 
+    pub fn default(base:ConfigStorePoint) -> Self{
+        Self(Default::default(),base)
+    }
+
     pub async fn load(base:&ConfigStorePoint) -> Result<Self>{
         let data = AccountMapping::load(base)?;
         Ok(Self(data.into(),base.clone()))
