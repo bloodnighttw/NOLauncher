@@ -1,6 +1,6 @@
-mod microsoft;
-mod xbox;
-mod minecraft;
+pub mod microsoft;
+pub mod xbox;
+pub mod minecraft;
 
 use reginleif::auth::microsoft::{DeviceCode, MicrosoftAuth};
 use reginleif::auth::xbox::{XboxLiveToken, XboxSecurityToken};
@@ -33,17 +33,8 @@ where
     let data:Option<ExpiringData<DeviceCode>> = None;
     let step:NLAuthStep = AuthStep::Exchange.into();
 
+    
     wrapper
         .manage(RwLock::from(data))
         .manage(step)
-        .invoke_handler(
-            tauri::generate_handler![
-                microsoft::devicecode,
-                microsoft::exchange,
-                microsoft::refresh,
-                xbox::xbox_live,
-                xbox::xbox_security,
-                minecraft::account
-            ]
-        )
 }

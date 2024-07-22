@@ -54,6 +54,24 @@ fn main() {
         .module(auth::init)
         .module(accounts::init)
         .expand()
+        .invoke_handler(tauri::generate_handler![
+
+            /* This is from auth module */
+            auth::microsoft::devicecode,
+            auth::microsoft::exchange,
+            auth::microsoft::refresh,
+            auth::xbox::xbox_live,
+            auth::xbox::xbox_security,
+            auth::minecraft::account,
+
+            /* This is from accounts module */
+            accounts::info::accounts_list,
+            accounts::info::accounts_now,
+            accounts::control::logout,
+            accounts::control::switch,
+            
+
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,5 +1,5 @@
-mod info;
-mod control;
+pub mod info;
+pub mod control;
 
 use tauri::{App, Manager, Runtime};
 
@@ -19,11 +19,5 @@ where
             }).expect("WTF");
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            info::accounts_list,
-            info::accounts_now,
-            control::logout,
-            control::switch
-        ])
     
 }

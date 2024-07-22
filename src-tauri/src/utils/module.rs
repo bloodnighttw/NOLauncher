@@ -6,7 +6,6 @@ use std::error::Error;
 use std::ops::Deref;
 use std::sync::Arc;
 use tauri::{App, Builder, Runtime};
-use tauri::ipc::Invoke;
 
 type SetupExpandFn<R> = dyn Fn(&&mut App<R>) -> Result<(), Box<dyn Error>> + Send + Sync + 'static;
 
@@ -79,16 +78,6 @@ impl <R> BuilderWrapper<R> where R:Runtime{
     pub fn manage<T>(self, data:T) -> Self
     where T:Send+Sync+'static{
         let builder = self.builder.manage(data);
-        Self{
-            builder,
-            expands: self.expands
-        }
-    }
-
-    /// to register command
-    pub fn invoke_handler<F>(self,handlers:F) -> Self
-    where F:Fn(Invoke<R>) -> bool + Send + Sync + 'static{
-        let builder = self.builder.invoke_handler(handlers);
         Self{
             builder,
             expands: self.expands
