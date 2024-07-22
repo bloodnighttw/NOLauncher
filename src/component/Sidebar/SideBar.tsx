@@ -2,8 +2,8 @@ import {Link, useLocation} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
 import {invoke} from "@tauri-apps/api/core";
-import { useDispatch } from "react-redux";
-import { Account, initAccount } from "../../state-hook/state/account/accountSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { Account, initAccount, initUserNow } from "../../state-hook/state/account/accountSlice";
 import { openSidePanel } from "../../state-hook/state/side-panel/accountListSlice";
 
 const homeSVG = (
@@ -129,12 +129,26 @@ function identifyLink(args: any) {
     return 0; // '/home' & '/instance/{id}'
 }
 
+interface UserNowPayload{
+    id:string | undefined | null
+}
+
 export default function SideBar() {
     let location = useLocation();
     const dispatch = useDispatch();
+
+    const me = useSelector((state: any) => state.account.userNow)
+    const accounts = useSelector((state: any) => state.account.accounts)
+
+    const userNow = () => accounts.find((account: Account) => account.id === me)
     
+
     useEffect(() => {
         invoke<Account[]>("accounts_list").then((payload) => dispatch(initAccount(payload))).catch(console.error)
+        invoke<UserNowPayload>("accounts_now").then((payload) => {
+            console.log(payload)
+            dispatch(initUserNow(payload.id))
+        }).catch(console.error)
     }, [])
 
     const selected = "p-1.5 bg-base-300 rounded-md transition-transform duration-200";
@@ -174,11 +188,11 @@ export default function SideBar() {
 
             <div className="flex flex-col">
                 <div
-                    className="p-1.5 duration-200 rounded-md"
+                    className="rounded-md"
                     onClick={()=>{dispatch(openSidePanel())}}
                 >
 
-                {noaccount}
+                {userNow() ? <img className="size-9 rounded active:scale-90 duration-200" src={"https://crafatar.com/avatars/" + userNow().id}/> : noaccount}
 
                     {/* {
                         user == null ? noaccount
@@ -192,3 +206,4 @@ export default function SideBar() {
         </aside>
     );
 }
+

@@ -9,7 +9,7 @@ export interface Account{
 }
 
 interface AccountsState{
-    userNow: string | undefined;
+    userNow: string | undefined | null;
     accounts: Account[]; // id -> Account
 }
 
@@ -55,10 +55,13 @@ const accountSlice = createSlice({
         },
         initAccount: (state,action:PayloadAction<Account[]>) => {
             state.accounts = action.payload;
+        },
+        initUserNow: (state,action:PayloadAction<string|undefined|null>) => {
+            state.userNow = action.payload;
         }
     }
 })
 
-export const { switchAccount, addAccount, logoutAccount, initAccount } = accountSlice.actions;
+export const { switchAccount, addAccount, logoutAccount, initAccount, initUserNow } = accountSlice.actions;
 
 export default accountSlice.reducer;
