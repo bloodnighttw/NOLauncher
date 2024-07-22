@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use crate::constant::token::MICROSOFT_CLIENT_ID;
 use anyhow::Result;
 use reginleif_utils::save_path::Store;
-use reginleif_utils::expiring_data::{Refreshable};
+use reginleif_utils::expiring_data::Refreshable;
 use tauri::{App, Manager, Runtime};
 use crate::utils::module::BuilderWrapper;
 
@@ -30,7 +30,7 @@ impl NLAccounts {
     pub async fn add(&self,account: Account,path:&ConfigStorePoint) -> Result<()>{
         let mut writer = self.0.write().await;
         writer.1.insert(account.profile.id.clone(),account);
-        writer.save(&path)?;
+        writer.save(path)?;
         Ok(())
     }
 

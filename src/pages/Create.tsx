@@ -268,7 +268,7 @@ export function Create() {
                            }}
                     />
 
-                    <select disabled className="select select-bordered w-full select-sm w-full h-full ">
+                    <select disabled className="select select-bordered w-full select-sm h-full ">
                         <option disabled selected>Tag is Coming soon......</option>
                     </select>
                 </div>

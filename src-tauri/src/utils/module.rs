@@ -8,9 +8,11 @@ use std::sync::Arc;
 use tauri::{App, Builder, Runtime};
 use tauri::ipc::Invoke;
 
+type SetupExpandFn<R> = dyn Fn(&&mut App<R>) -> Result<(), Box<dyn Error>> + Send + Sync + 'static;
+
 pub struct BuilderWrapper<R> where R:Runtime{
     builder: Builder<R>,
-    expands: Vec<Arc<dyn Fn(&&mut App<R>) -> Result<(), Box<dyn Error>> + Send + Sync + 'static>> // we need to store in arc
+    expands: Vec<Arc<SetupExpandFn<R>>> // we need to store in arc
 }
 
 /// Rust orphans rule required a trait in this scope to implement the this trait

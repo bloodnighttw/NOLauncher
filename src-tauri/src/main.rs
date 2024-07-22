@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 extern crate core;
 
-use crate::command::{auth};
+use crate::command::auth;
 use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::utils::module::ModuleExtend;
