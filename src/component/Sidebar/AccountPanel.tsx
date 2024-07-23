@@ -57,20 +57,28 @@ export default function AccountPanel() {
     return ( open?
         <div className="absolute bg-base-100 w-96 bottom-1 left-0 mx-20 rounded my-2 p-2 flex flex-col-reverse shadow-lg delay-1000 animate-fade transform-gpu gap-1" ref={item}>
 
-            <div className="flex p-2 hover:bg-base-300/75 duration-200 rounded cursor-pointer" onClick={()=>nav('auth')}>
+            <div className="flex p-2 hover:bg-base-300/50 duration-200 rounded cursor-pointer" 
+            onClick={()=>{
+                nav('auth')
+                dispatch(closeSidePanel())
+            }}>
                 <div className="m-auto justify-center">
                     {new_account}
                 </div>
             </div>  
 
             {accounts.map((account,index) => (
-                <div className={"flex gap-4 p-2 hover:bg-base-300/75 duration-200 rounded "+(me == account.id ? "bg-base-200 outline-1" :"")} key={index}>
+                <div className={"flex gap-4 p-2  duration-200 rounded "+(me == account.id ? "bg-green-400/50 hover:bg-green-400" :"hover:bg-base-300/50")} key={index}>
                     <img className="w-8 h-8 bg-base-100 rounded flex-none cursor-pointer" src={"https://crafatar.com/avatars/" + account.id} onClick={()=>switch_account(account)}/>
-                    <div className="my-auto flex-grow cursor-pointer" onClick={()=>switch_account(account)}>{account.name}</div>
-                    <div className="my-auto h-8 w-8 p-1 active:scale-90 duration-200 cursor-pointer" onClick={()=>nav("login/"+account.id)}>{settings}</div>
-                    <div className="my-auto h-8 w-8 p-1 active:scale-90 duration-200 text-red-500 cursor-pointer" onClick={()=>dispatch(logoutAccount(account.id))}>{logout}</div>
+                    <div className="my-auto flex-grow cursor-pointer success-content" onClick={()=>switch_account(account)}>{account.name}</div>
+                    <div className="my-auto h-8 w-8 p-1 active:scale-90 duration-200 cursor-pointer rounded hover:bg-base-100 hover:shadow" onClick={()=>nav("login/"+account.id)}>{settings}</div>
+                    <div className="my-auto h-8 w-8 p-1 active:scale-90 duration-200 text-red-500 cursor-pointer rounded hover:bg-base-100 hover:shadow" onClick={()=>dispatch(logoutAccount(account.id))}>{logout}</div>
                 </div>  
             ))}
+
+            <div className="px-2 flex">
+                <div className="flex-none flex-grow">{accounts.length == 0 ? "Add a new account:" : "Your account:"}</div>
+            </div>
 
 
         </div>:null

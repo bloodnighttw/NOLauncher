@@ -45,25 +45,29 @@ export function CharBox(props:Props){
             }
         }}>
             {
-                !chars || !props.enable ? (chars ? chars!! : "        ".split("")).map((e)=> (
-                        <div
-                            className={disabled}>
-                            {e}
-                        </div>
-                    )) :
-                    props.err ? chars!!.map((e) => ( // webkit2gtk only support this syntax
-                            <div
+                !chars || !props.enable ? (chars ? chars!! : "        ".split("")).map((e,index)=> (
+                    <div
+                        key={index}
+                        className={disabled}>
+                        {e}
+                    </div>
+                )) :
+                props.err ? chars!!.map((e,index) => ( // webkit2gtk only support this syntax
+                    <div
+                        key={index}
                         className={error}>
                         {e}
                     </div>
                 )) :
-                click ? chars!!.map((e) => ( // webkit2gtk only support this syntax
+                click ? chars!!.map((e,index) => ( // webkit2gtk only support this syntax
                     <div
+                        key={index}
                         className={clicked}>
                         {e}
                     </div>
-                )) : chars!!.map((e) => (
+                )) : chars!!.map((e,index) => (
                     <div
+                        key={index}
                         className={notClicked}>
                         {e}
                     </div>

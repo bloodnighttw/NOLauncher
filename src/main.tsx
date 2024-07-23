@@ -3,6 +3,9 @@ import App from "./App";
 import {BrowserRouter} from "react-router-dom";
 import {Provider} from "react-redux";
 import { store } from "./state-hook/store";
+import "./ReactotronConfig"
+
+
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <BrowserRouter>
