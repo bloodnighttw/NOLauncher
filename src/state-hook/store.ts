@@ -5,9 +5,6 @@ import accountListReducer from "./state/side-panel/accountListSlice";
 // @ts-ignore
 import reactron from "../ReactotronConfig"
 
-import logger from "redux-logger"
-
-
 const __DEV__ = import.meta.env.DEV
 
 export const store = configureStore({
