@@ -247,6 +247,11 @@ export function Create() {
         {long_name: "Import", component: null},
     ];
 
+    useEffect(()=>{
+        invoke("pkg_info",{uid:"net.minecraftforge"}).then(console.log)
+    })
+
+
 
     const tabClick = (index: number) => {
         setTabIndex(index)

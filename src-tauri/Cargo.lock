@@ -2353,6 +2353,7 @@ name = "nolauncher"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "futures-util",
  "log",
  "rand 0.9.0-alpha.1",
@@ -3219,9 +3220,9 @@ checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
 name = "reginleif"
-version = "0.2.2"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61f3b757af0e4fb8882ecebb133028ea44ed8019366694926e4458aa6cc2d83e"
+checksum = "76d9ef9f3084af27be36ecf72192f7cf677d62f615d1978fabcb68d382e49100"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3237,9 +3238,9 @@ dependencies = [
 
 [[package]]
 name = "reginleif-macro"
-version = "0.2.2"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea3d2bc01c738ce11166ad4d812b95b0b1e9c64a3c251eef456337650a90149"
+checksum = "aad1780eaf82faae908c70b375e392829759b2f10ca127a7082e2e6a7575ece5"
 dependencies = [
  "quote",
  "syn 2.0.68",
@@ -3247,9 +3248,9 @@ dependencies = [
 
 [[package]]
 name = "reginleif-utils"
-version = "0.2.2"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04dce318dc3af029905b3703d50429d86f62d0e668fbabbcd2d7caf6d9c50a56"
+checksum = "4bfda19381f56e91953cf30e53e7d0d3fe3b5d95b60db4b558036455376affcc"
 dependencies = [
  "anyhow",
  "async-trait",

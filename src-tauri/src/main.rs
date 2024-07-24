@@ -3,7 +3,7 @@
 extern crate core;
 
 use crate::command::auth;
-use command::accounts;
+use command::{accounts, metadata};
 use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::utils::module::ModuleExtend;
@@ -53,6 +53,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .module(auth::init)
         .module(accounts::init)
+        .module(metadata::init)
         .expand()
         .invoke_handler(tauri::generate_handler![
 
@@ -69,6 +70,9 @@ fn main() {
             accounts::info::accounts_now,
             accounts::control::logout,
             accounts::control::switch,
+
+            /* This is from metadata module */
+            metadata::packages::pkg_info
             
 
         ])

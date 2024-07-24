@@ -2,16 +2,16 @@ use std::path::PathBuf;
 use reginleif_macro::BaseStorePoint;
 use tauri::{App, AppHandle, Manager};
 
-#[derive(BaseStorePoint)]
+#[derive(BaseStorePoint,Clone,Debug)]
 pub struct MetadataStorePoint(PathBuf);
 
-impl TryFrom<&AppHandle> for MetadataStorePoint {
+impl <R> TryFrom<&&mut tauri::App<R>> for MetadataStorePoint
+where R: tauri::Runtime{
     type Error = tauri::Error;
 
-    fn try_from(app_handle: &AppHandle) -> Result<Self, Self::Error> {
-        let dir = app_handle
-            .path()
-            .app_cache_dir()?;
+    fn try_from(value: &&mut App<R>) -> Result<Self, Self::Error> {
+       let dir = value.path()
+           .app_cache_dir()?;
         Ok(Self(dir))
     }
 }
