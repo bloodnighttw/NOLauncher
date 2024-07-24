@@ -8,7 +8,7 @@ import {Settings} from "./pages/Settings.tsx";
 import {Login, UserProfile} from "./pages/Login.tsx";
 import {Auth} from "./pages/Auth/Auth.tsx";
 import React from "react";
-import {Create} from "./pages/Create.tsx";
+import {Create} from "./pages/Create/Create.tsx";
 import AccountPanel from "./component/Sidebar/AccountPanel.tsx";
 
 interface ContentProps {
