@@ -1,5 +1,4 @@
 pub mod packages;
-pub mod versions;
 
 use anyhow::Result;
 use tauri::{App, Manager, Runtime};
