@@ -45,3 +45,16 @@ pub async fn pkg_info(
 
     Ok(vec)
 }
+
+
+#[tauri::command]
+pub async fn pkg_refresh(
+    pkg_handler:State<'_,PackageListHandler>
+)-> CommandResult<()> {
+
+    let client = Client::new();
+    let url =  "https://meta.prismlauncher.org/v1";
+    pkg_handler.refresh(client,url).await?;
+
+    Ok(())
+}

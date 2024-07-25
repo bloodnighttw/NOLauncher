@@ -3,7 +3,7 @@
 extern crate core;
 
 use crate::command::auth;
-use command::{accounts, metadata};
+use command::{accounts, instances, metadata};
 use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::utils::module::ModuleExtend;
@@ -72,7 +72,11 @@ fn main() {
             accounts::control::switch,
 
             /* This is from metadata module */
-            metadata::packages::pkg_info
+            metadata::packages::pkg_info,
+            metadata::packages::pkg_refresh,
+            
+            /* This is from instances module */
+            instances::manage::instance_create,
             
 
         ])
