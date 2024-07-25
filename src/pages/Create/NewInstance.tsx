@@ -19,6 +19,12 @@ interface Props{
     name:string
 }
 
+const refresh_icon =
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+</svg>
+
+
 export function NewInstance(props:Props) {
 
 
@@ -36,8 +42,9 @@ export function NewInstance(props:Props) {
 
 
     const setRef = useRef(new Set<string>())
+    const pkg_index = useRef(0)
 
-    const [vanilla,_v] = useCommand<Array<VersionPayload>>("pkg_info",{uid:"net.minecraft"})
+    const [vanilla,setVanilla] = useCommand<Array<VersionPayload>>("pkg_info",{uid:"net.minecraft"})
     const [mods,setMods] = useState<Array<VersionPayload>|null>(null);
 
     const [selectedVersion,setSelectedVersion] = useState<string>("unselected");
@@ -55,44 +62,64 @@ export function NewInstance(props:Props) {
     const platformInactive = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
     const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
 
+    const refresh = async ()=>{
 
-    return <div className="py-1.5 w-full gap-2">
+        setRef.current.clear()
+        setSelectedMod("unselected")
+        setSelectedVersion("unselected")
+        setMods(null)
+        setVanilla(null)
+
+        let vanilla_data = await invoke<Array<VersionPayload>>("pkg_info",{uid:"net.minecraft"})
+        setVanilla(vanilla_data)
+        await invoke<Array<VersionPayload>>("pkg_refresh")
+        await fetching(pkg_index.current)
+    }
+
+    const fetching = async (index:number)=>{
+
+        let [name,uid,dep] = PackageInfo[index]
+
+        setPlatform([name,uid,dep])
+        setRef.current.clear()
+        setSelectedMod("unselected")
+        setSelectedVersion("unselected")
+        setMods(null)
+
+        let data = await invoke<Array<VersionPayload>>("pkg_info",{uid:uid})
+
+        if(dep == DependOn.Intermediary){
+            let v = await invoke<Array<VersionPayload>>("pkg_info",{uid:"net.fabricmc.intermediary"})
+            v.map((v)=>{if(v.require) setRef.current.add(v.require)})
+            setMods(data)
+        }else{
+            data.map((v)=>{if(v.require) setRef.current.add(v.require)})
+            setMods(data)
+        }
+
+        pkg_index.current = index
+
+    };
+ 
+
+    return <div className="py-1 w-full">
+        
         <div className="label">
-            <span className="label-text">Pick the platform you want to use:</span>
+            <span className="label-text text-lg">Pick the platform you want to use:</span>
         </div>
         <div role="tablist" className="tabs bg-base-100 rounded-md p-0.5">
             {
-                PackageInfo.map(([name,uid,dep])=>(
-                    <div role="tab" className={platform[0] == name ? platformActive : platformInactive}
-                        onClick={() => {
-                            setPlatform([name,uid,dep])
-                            setRef.current.clear()
-                            setSelectedMod("unselected")
-                            setSelectedVersion("unselected")
-                            
-                            setMods(null)
-
-                            invoke<Array<VersionPayload>>("pkg_info",{uid:uid}).then((data)=>{
-                                if(dep == DependOn.Intermediary){
-                                    invoke<Array<VersionPayload>>("pkg_info",{uid:"net.fabricmc.intermediary"})
-                                    .then((v)=>{
-                                        v.map((v)=>{if(v.require) setRef.current.add(v.require)})
-                                        setMods(data)
-                                    })
-                                }else{
-                                    data.map((v)=>{if(v.require) setRef.current.add(v.require)})
-                                    setMods(data)
-                                }
-                            })
-
-                            
-                        }}>{name}</div>
+                PackageInfo.map((args,index)=>(
+                    <div role="tab" className={platform[0] == args[0] ? platformActive : platformInactive}
+                        onClick={() => fetching(index).catch(console.error)}>
+                        {args[0]}
+                    </div>
                 ))
             }
         </div>
 
         <div className="label">
-            <span className="label-text">Minecraft Version Filter</span>
+            <span className="label-text text-lg">Minecraft Version Filter</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -140,8 +167,13 @@ export function NewInstance(props:Props) {
             </div>
         </div>
 
-        <div className="label">
-            <span className="label-text">Select Minecraft Version</span>
+        <div className="label flex">
+            <span className="label-text text-lg">Select Minecraft Version</span>
+            <div className="grow"></div>
+            {  vanilla?
+                <div onClick={()=>refresh().catch(console.error)} className="cursor-pointer active:rotate-180 duration-100">{refresh_icon}</div>:
+                <span className="loading loading-spinner loading-xs"></span>
+            }
         </div>
 
         <select className="select select-bordered w-full select-sm"
@@ -175,8 +207,13 @@ export function NewInstance(props:Props) {
         
          {
             platform[2] !== DependOn.NONE ? <div className="duration-200">
-                <div className="label">
-                    <span className="label-text">Select {platform} Version</span>
+                <div className="label flex">
+                    <span className="label-text">Select {platform[0]} Version</span>
+                    <div className="grow"></div>
+                    {  mods?
+                        null:
+                        <span className="loading loading-spinner loading-xs"></span>
+                    }
                 </div>
 
                 <select className="select select-bordered w-full select-sm"
