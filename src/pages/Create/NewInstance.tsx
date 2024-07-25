@@ -241,16 +241,20 @@ export function NewInstance(props:Props) {
 
         <div className="flex justify-end label">
             <button className="btn btn-sm bg-base-100 duration-400"
+                    disabled={
+                        selectedVersion == "unselected" || 
+                        (selectedMod == "unselected" && platform[2] !== DependOn.NONE)
+                    }
                     onClick={() => {
-                        // let request:InstanceCreateRequest = {
-                        //     name: props.name,
-                        //     ptype: platform,
-                        //     version: selectedVersion,
-                        //     mod_version: selectedMod
-                        // };
-                        // invoke("create_instance", {
-                        //     request:request
-                        // }).then(()=>navigate("/")).catch(console.error)
+                        if(selectedVersion == "unselected") return
+                        if(selectedMod == "unselected" && platform[2] !== DependOn.NONE) return
+
+                        invoke("instance_create",{
+                            name:props.name,
+                            uid:platform[1],
+                            mcVersion:selectedVersion,
+                            version:selectedMod!=="unselected"? selectedMod! : selectedVersion,
+                        }).catch(console.error).then(()=>console.log("Create!"))
                     }}
             >Create!</button>
         </div>

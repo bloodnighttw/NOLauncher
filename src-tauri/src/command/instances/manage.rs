@@ -1,7 +1,7 @@
 use reginleif_utils::save_path::Save;
 use tauri::State;
 
-use crate::utils::{base_store::InstanceStorePoint, result::CommandResult, settings::instances::InstanceConfig};
+use crate::utils::{result::CommandResult, settings::instances::{InstancesConfig, NLInstanceList}};
 
 #[tauri::command]
 pub async fn instance_create(
@@ -9,12 +9,14 @@ pub async fn instance_create(
     mc_version:String,
     uid:String,
     version:String,
-    instance_path:State<'_,InstanceStorePoint>
+    instance_list:State<'_,NLInstanceList>
 )-> CommandResult<()> {
 
     let random_id = uuid::Uuid::new_v4().to_string();
-    let instance = InstanceConfig{
-        id: random_id,
+    let instance_path = instance_list.store_point();
+
+    let instance = InstancesConfig{
+        id: random_id.clone(),
         name,
         mc_version,
         uid,
@@ -22,6 +24,8 @@ pub async fn instance_create(
     };
 
     instance.save(&instance_path)?;    
-    
+
+    instance_list.add(random_id).await?;
+
     Ok(())
 }

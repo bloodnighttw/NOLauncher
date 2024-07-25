@@ -54,6 +54,7 @@ fn main() {
         .module(auth::init)
         .module(accounts::init)
         .module(metadata::init)
+        .module(instances::init)
         .expand()
         .invoke_handler(tauri::generate_handler![
 

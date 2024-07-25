@@ -31,18 +31,17 @@ impl TryFrom<&AppHandle> for AssetStorePoint {
     }
 }
 
-#[derive(BaseStorePoint)]
+#[derive(BaseStorePoint,Clone)]
 pub struct InstanceStorePoint(PathBuf);
 
-impl TryFrom<&AppHandle> for InstanceStorePoint {
+impl <R> TryFrom<&&mut tauri::App<R>> for InstanceStorePoint
+where R: tauri::Runtime{
     type Error = tauri::Error;
 
-    fn try_from(app_handle: &AppHandle) -> Result<Self, Self::Error> {
-        let cache_dir = app_handle
-            .path()
-            .app_data_dir()?
-            .join("instances");
-        Ok(Self(cache_dir))
+    fn try_from(value: &&mut App<R>) -> Result<Self, Self::Error> {
+       let dir = value.path()
+           .app_data_dir()?;
+        Ok(Self(dir))
     }
 }
 
