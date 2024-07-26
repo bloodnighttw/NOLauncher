@@ -1,7 +1,7 @@
 import SideBar from "./component/Sidebar/SideBar.tsx";
 import "./index.css";
 import {Route, Routes} from "react-router-dom";
-import {Home} from "./pages/Home.tsx";
+import {Home} from "./pages/Home/Home.tsx";
 import {Server} from "./pages/Server.tsx";
 import {ModList} from "./pages/ModList.tsx";
 import {Settings} from "./pages/Settings.tsx";

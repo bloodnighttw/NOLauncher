@@ -77,8 +77,8 @@ fn main() {
             metadata::packages::pkg_refresh,
             
             /* This is from instances module */
-            instances::manage::instance_create,
-            
+            instances::control::instance_create,
+            instances::info::instance_list,
 
         ])
         .run(tauri::generate_context!())

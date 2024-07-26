@@ -2,7 +2,8 @@ use tauri::{App, Manager, Runtime};
 
 use crate::utils::{base_store::InstanceStorePoint, module::BuilderWrapper, settings::instances::NLInstanceList};
 
-pub mod manage;
+pub mod control;
+pub mod info;
 
 
 pub fn init<R>(wrapper: BuilderWrapper<R>) -> BuilderWrapper<R>

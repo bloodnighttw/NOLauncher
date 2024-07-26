@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use log::error;
 use reginleif_macro::{Load, Save, Storage};
-use reginleif_utils::save_path::{BaseStorePoint, ExpandStorePoint, Store};
+use reginleif_utils::save_path::{BaseStorePoint, ExpandStorePoint, Load, Store};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use crate::utils::base_store::InstanceStorePoint;
@@ -38,9 +38,15 @@ impl NLInstanceList{
         Self(RwLock::new(data),base)
     }
 
-    pub async fn list_cloned(&self) -> Vec<String>{
+    pub async fn list_cloned(&self) -> Vec<(String,String)>{ //(id, name)
         let reader = self.0.read().await;
-        reader.instances.clone()        
+        let mut vec = vec![];
+        for i in reader.instances.iter(){
+            let config = InstancesConfig::load(&self.1,PathBuf::from(i.as_str()).join("config.json")).unwrap_or_default();
+            vec.push((i.clone(),config.name.clone()));
+        }
+
+        vec       
     }
 
     pub async fn add(&self, id:String)->anyhow::Result<()>{
