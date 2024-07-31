@@ -1,6 +1,7 @@
 import {useRef, useState } from "react";
 import useCommand from "../../state-hook/hook/useCommand";
 import { invoke } from "@tauri-apps/api/core";
+import { useNavigate } from "react-router-dom";
 
 enum DependOn{
     NONE,
@@ -56,8 +57,7 @@ export function NewInstance(props:Props) {
     const [beta,setBeta] = useState<boolean>(false);
     const [alpha,setAlpha] = useState<boolean>(false);
 
-
-    // const navigate = useNavigate();
+    const navigate = useNavigate();
 
     const platformInactive = "tab rounded-md duration-200 active:scale-90 hover:bg-base-200";
     const platformActive = "tab rounded-md duration-200 bg-base-200 active:scale-90";
@@ -243,18 +243,20 @@ export function NewInstance(props:Props) {
             <button className="btn btn-sm bg-base-100 duration-400"
                     disabled={
                         selectedVersion == "unselected" || 
-                        (selectedMod == "unselected" && platform[2] !== DependOn.NONE)
+                        (selectedMod == "unselected" && platform[2] !== DependOn.NONE) ||
+                        props.name == ""
                     }
                     onClick={() => {
                         if(selectedVersion == "unselected") return
                         if(selectedMod == "unselected" && platform[2] !== DependOn.NONE) return
+                        if(props.name == "") return
 
                         invoke("instance_create",{
                             name:props.name,
                             uid:platform[1],
                             mcVersion:selectedVersion,
                             version:selectedMod!=="unselected"? selectedMod! : selectedVersion,
-                        }).catch(console.error).then(()=>console.log("Create!"))
+                        }).catch(console.error).then(()=>navigate('/'))
                     }}
             >Create!</button>
         </div>

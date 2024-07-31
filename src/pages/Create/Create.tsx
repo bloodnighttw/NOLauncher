@@ -15,10 +15,6 @@ export function Create() {
     ];
 
 
-    const tabClick = (index: number) => {
-        setTabIndex(index)
-    }
-
     return (
         <div className="p-2">
             <div className="w-full flex flex-row gap-2 p-2">
@@ -46,7 +42,7 @@ export function Create() {
                 <div role="tablist" className="tabs tabs-bordered">
                     {tabs.map((i, index) => (
                         <div className={index == tabIndex ? tabActive : tab}
-                             onClick={() => tabClick(index)}>{i.long_name}</div>
+                             onClick={() => setTabIndex(index)}>{i.long_name}</div>
                     ))}
                 </div>
 
