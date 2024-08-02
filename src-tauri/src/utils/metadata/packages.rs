@@ -59,8 +59,10 @@ impl PackageListHandler {
 
         let temp = if timer.inner.is_expired(){
             timer.inner = ExpiringData::from(InnerTimer); // reset timer
+            timer.save(&self.1)?; 
             PackageList::refresh(&self.1,client,url).await?
         }else{
+            timer.save(&self.1)?;
             PackageList::fetch(&self.1,client,url).await?
         };
 
