@@ -3,7 +3,7 @@ pub mod packages;
 use anyhow::Result;
 use tauri::{App, Manager, Runtime};
 
-use crate::utils::{base_store::MetadataStorePoint, metadata::packages::PackageListHandler, module::BuilderWrapper};
+use crate::utils::{base_store::MetadataStorePoint, metadata::handler::PackageListHandler, module::BuilderWrapper};
 
 pub fn init<R>(wrapper: BuilderWrapper<R>) -> BuilderWrapper<R>
 where

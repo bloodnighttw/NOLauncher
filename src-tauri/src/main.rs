@@ -79,6 +79,7 @@ fn main() {
             /* This is from instances module */
             instances::control::instance_create,
             instances::info::instance_list,
+            instances::info::instance_downloads,
 
         ])
         .run(tauri::generate_context!())

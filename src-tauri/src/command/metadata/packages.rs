@@ -1,10 +1,10 @@
-use std::{collections::HashMap, ops::Deref};
+use std::ops::Deref;
 
 use reqwest::Client;
 use serde::Serialize;
 use tauri::State;
 
-use crate::utils::{base_store::MetadataStorePoint, metadata::packages::PackageListHandler, result::CommandResult};
+use crate::utils::{base_store::MetadataStorePoint, metadata::handler::PackageListHandler, result::CommandResult};
 
 #[derive(Debug,Serialize)]
 pub struct VersionInfo{
